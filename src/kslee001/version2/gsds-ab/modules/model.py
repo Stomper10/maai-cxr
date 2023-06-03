@@ -48,61 +48,56 @@ class A2IModel(tf.keras.Model):
 class FeatureExtractor(tf.keras.layers.Layer):
     def __init__(self, drop_rate=0., regularization=4e-5, seed=1005):
         super().__init__()
-        kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)
-        kernel_regularizer = tf.keras.regularizers.l2(regularization)
-
-        self.drop_rate = drop_rate
+        kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)        kernel_regularizer = tf.keras.regularizers.l2(regularization)
 
         self.extractor = tf.keras.models.Sequential([
             ConvBnAct(filters=32, kernel_size=3, strides=2, padding='same', use_bias=False, seed=seed),    
-            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 32, strides=1, drop_rate=drop_rate, seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 32, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 32, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(32, 64, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 64, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(64, 64, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(64, 64, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(64, 128, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(64, 128, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(128, 196, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 196, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(196, 256, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 256, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(256, 512, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(256, 512, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 512, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
 
-            InvertedBottleneck(512, 768, strides=2, seed=seed, regularization=regularization),
-            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 768, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-            InvertedBottleneck(768, 1280, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 1280, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 1280, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 1280, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            # InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
 
-            InvertedBottleneck(1280, 1440, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(1440, 1440, strides=1, seed=seed, regularization=regularization),
+            # InvertedBottleneck(1280, 1440, strides=1, seed=seed, regularization=regularization),
+            # InvertedBottleneck(1440, 1440, strides=1, seed=seed, regularization=regularization),
             
         ])
 
     def call(self, x, training=False):
         return self.extractor(x, training=training)
-
-
 
 
 class Expert(tf.keras.layers.Layer):
@@ -111,9 +106,9 @@ class Expert(tf.keras.layers.Layer):
         kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)
         kernel_regularizer = tf.keras.regularizers.l2(regularization)
         self.extractor = tf.keras.models.Sequential([
-            InvertedBottleneck(1280, 512, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(512, 128, strides=1, seed=seed, regularization=regularization),
-            InvertedBottleneck(128, 64, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 128, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 64, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
             layers.Flatten(),
             layers.Dense(1, 

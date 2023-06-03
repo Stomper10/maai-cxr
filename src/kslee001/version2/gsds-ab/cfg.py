@@ -4,7 +4,7 @@ from functions import make_dir
 
 configs = EasyDict()
 configs.seed = 1005
-configs.batch_size = 16
+configs.batch_size = 8
 configs.epochs = 10
 configs.learning_rate = 0.00005
 configs.warm_up_rate = 0.1

@@ -19,14 +19,14 @@ if __name__ == '__main__':
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
 
     # settings 
-    # with strategy.scope():
-    model = A2IModel(num_classes=5)
-    model.initialize()
-    model.summary()
-    optimizer = tf.keras.optimizers.Adam(learning_rate=configs.learning_rate)
-    criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-    metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=5)]
-    model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
+    with strategy.scope():
+        model = A2IModel(num_classes=5)
+        model.initialize()
+        model.summary()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=configs.learning_rate)
+        criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+        metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=5)]
+        model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
 
     # training
     model.fit(train_dataset, epochs=configs.epochs, validation_data=valid_dataset)
