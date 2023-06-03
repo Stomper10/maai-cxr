@@ -37,11 +37,12 @@ class ConvBnAct(tf.keras.layers.Layer):
             use_bias=use_bias,
         )
         self.bn = tf.keras.layers.BatchNormalization()
+        self.act = layers.ReLU(6)
 
     def call(self, x, training=False):
         x = self.conv(x)
         x = self.bn(x, training=training)
-        return tf.nn.relu(x)
+        return self.act(x)
 
 
 
@@ -49,14 +50,20 @@ class InvertedBottleneck(tf.keras.layers.Layer):
     def __init__(
         self, 
         in_channels, out_channels,
-        strides=(1,1),
+        strides=1,
         expansion=6,
+        drop_rate=0.,
         regularization=4e-5,
         seed=1005,
         ):
         super().__init__()
         self.initializer = tf.keras.initializers.HeNormal(seed=seed)
         self.regularizer = tf.keras.regularizers.l2(regularization)
+        self.drop_path = DropPath(drop_rate=drop_rate)
+
+        assert type(strides) == int
+        self.residual = (in_channels == out_channels) & (strides==1)
+        self.act = tf.keras.activations.gelu
 
         # input -> bottleneck (Expanding)
         self.conv1 = layers.Conv2D(
@@ -67,7 +74,6 @@ class InvertedBottleneck(tf.keras.layers.Layer):
             kernel_regularizer=self.regularizer,
         )
         self.bn1 = layers.BatchNormalization(axis=-1, momentum=0.999, epsilon=0.0001)
-        self.act1 = layers.ReLU(6)
 
         # bottleneck -> Depthwise Convolution
         self.conv2 = layers.DepthwiseConv2D(
@@ -77,7 +83,6 @@ class InvertedBottleneck(tf.keras.layers.Layer):
             kernel_regularizer=self.regularizer,
         )
         self.bn2 = layers.BatchNormalization(axis=-1, momentum=0.999, epsilon=0.0001)
-        self.act2 = layers.ReLU(6)
 
         # bottleneck -> output (Projection)
         self.conv3 = layers.Conv2D(
@@ -91,41 +96,36 @@ class InvertedBottleneck(tf.keras.layers.Layer):
 
     def call(self, x, training=False):
         # into the bottleneck
-        x = self.act1(self.bn1(self.conv1(x), training=training))
+        out = self.act(self.bn1(self.conv1(x), training=training))
         # in the bottleneck
-        x = self.act2(self.bn2(self.conv2(x), training=training))
+        out = self.act(self.bn2(self.conv2(out), training=training))
         # projection
-        x = self.bn3(self.conv3(x), training=training)
-        return x
+        out = self.bn3(self.conv3(out), training=training)
 
+        if self.residual:
+            return x + self.drop_path(out)
+        else:
+            return self.drop_path(out)
 
-
-
-class ConvNexTBlock(tf.keras.layers.Layer):
-    def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6, prefix=''):
-        super().__init__()
-        self.dwconv = layers.DepthwiseConv2D(
-            
-        )
 
 
 
 class DropPath(tf.keras.layers.Layer):
     # borrowed from https://github.com/rishigami/Swin-Transformer-TF/blob/main/swintransformer/model.py
-    def __init__(self, drop_prob=None):
+    def __init__(self, drop_rate=None):
         super().__init__()
-        self.drop_prob = drop_prob
+        self.drop_rate = drop_rate
 
     def call(self, x, training=None):
-        return self.drop_path(x, self.drop_prob, training)
+        return self.drop_path(x, self.drop_rate, training)
 
-    def drop_path(self, inputs, drop_prob, is_training):
+    def drop_path(self, inputs, drop_rate, is_training):
         # borrowed from https://github.com/rishigami/Swin-Transformer-TF/blob/main/swintransformer/model.py
-        if (not is_training) or (drop_prob == 0.):
+        if (not is_training) or (drop_rate == 0.):
             return inputs
 
         # Compute keep_prob
-        keep_prob = 1.0 - drop_prob
+        keep_prob = 1.0 - drop_rate
 
         # Compute drop_connect tensor
         random_tensor = keep_prob
@@ -135,4 +135,3 @@ class DropPath(tf.keras.layers.Layer):
         binary_tensor = tf.floor(random_tensor)
         output = tf.math.divide(inputs, keep_prob) * binary_tensor
         return output
-

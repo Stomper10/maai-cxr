@@ -7,7 +7,7 @@ from tqdm.auto import tqdm as tq
 import tensorflow as tf
 
 # private
-from modules.model import TestModel, tf
+from modules.model import A2IModel, TestModel_old
 from cfg import configs
 import functions
 
@@ -18,17 +18,13 @@ if __name__ == '__main__':
     # load datasets
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
 
-    model = TestModel_old()
-    model.summary()
-    exit()
-
     # settings 
     # with strategy.scope():
-    model = TestModel(num_classes=5)
-    model((tf.zeros((1, *configs.image_size, 3)), tf.zeros((1, 2))))
+    model = A2IModel(num_classes=5)
+    model.initialize()
     model.summary()
     optimizer = tf.keras.optimizers.Adam(learning_rate=configs.learning_rate)
-    criterion = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=5)]
     model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
 

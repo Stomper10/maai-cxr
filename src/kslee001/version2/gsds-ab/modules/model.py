@@ -11,74 +11,110 @@ from .backend import ConvBnAct, InvertedBottleneck
 
 
 # Toy model for experiment
-class TestModel(tf.keras.Model):
-    def __init__(self, num_classes=5, regularization=4e-5, seed=1005):
+class A2IModel(tf.keras.Model):
+    def __init__(self, img_size=(384, 384), num_classes=5, use_information=True, drop_rate=0., regularization=4e-5, seed=1005):
         super().__init__()
+        self.img_size = img_size
         self.num_classes = num_classes
-        self.experts = [Expert(regularization=regularization, seed=seed) for _ in range(num_classes)]
-        self.auxiliary_layer = AuxiliaryLayer(
-            num_classes=num_classes, 
-            regularization=regularization,
-            seed=seed
-        )
+        self.use_information = use_information
+        self.drop_rate = drop_rate
+
+        self.feature_extractor = FeatureExtractor(drop_rate=drop_rate, regularization=regularization, seed=seed)
+        self.experts = [Expert(drop_rate=drop_rate, regularization=regularization, seed=seed) for _ in range(num_classes)]
+
+        if self.use_information:
+            self.auxiliary_layer = AuxiliaryLayer(
+                num_classes=num_classes, 
+                regularization=regularization,
+                seed=seed
+            )
 
     def call(self, inputs, training=False):
         x, x_aug = inputs
         
-        feature = [self.experts[idx](x) for idx in range(self.num_classes)]
-        feature = tf.concat(feature, axis=-1)
+        feature = self.feature_extractor(x)
+        feature = [self.experts[idx](feature) for idx in range(self.num_classes)]
+        out = tf.concat(feature, axis=-1)
 
-        information = self.auxiliary_layer(x_aug)
-
-        out = feature + information
+        if self.use_information:
+            information = self.auxiliary_layer(x_aug)
+            out = out + information
         return out
+
+    def initialize(self):
+        self((tf.zeros((1, *self.img_size, 3)), tf.zeros((1, 2))))
 
 
 class FeatureExtractor(tf.keras.layers.Layer):
-    def __init__(self, regularization=4e-5, seed=1005):
+    def __init__(self, drop_rate=0., regularization=4e-5, seed=1005):
         super().__init__()
         kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)
         kernel_regularizer = tf.keras.regularizers.l2(regularization)
 
-        self.extractor = tf.keras.models.Sequential([
-            layers.Conv2D(32, 3, (2,2), 
-                kernel_initializer=kernel_initializer,
-                kernel_regularizer=kernel_regularizer,
-            ),
-            InvertedBottleneck(32, 64, (2,2),
-                seed=seed, regularization=regularization
-            ),
-            InvertedBottleneck(64, 128, (2,2),
-                seed=seed, regularization=regularization
-            ),
-            InvertedBottleneck(128, 256, (2,2),
-                seed=seed, regularization=regularization
-            ),    
+        self.drop_rate = drop_rate
 
+        self.extractor = tf.keras.models.Sequential([
+            ConvBnAct(filters=32, kernel_size=3, strides=2, padding='same', use_bias=False, seed=seed),    
+            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(32, 64, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(64, 128, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(128, 196, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(196, 256, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(256, 512, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(256, 512, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
+
+
+            InvertedBottleneck(512, 768, strides=2, seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(768, 1280, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+
+            InvertedBottleneck(1280, 1440, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(1440, 1440, strides=1, seed=seed, regularization=regularization),
+            
         ])
+
+    def call(self, x, training=False):
+        return self.extractor(x, training=training)
 
 
 
 
 class Expert(tf.keras.layers.Layer):
-    def __init__(self, regularization=4e-5, seed=1005):
+    def __init__(self, drop_rate=0., regularization=4e-5, seed=1005):
         super().__init__()
         kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)
         kernel_regularizer = tf.keras.regularizers.l2(regularization)
         self.extractor = tf.keras.models.Sequential([
-            layers.Conv2D(32, 3, (2,2), 
-                kernel_initializer=kernel_initializer,
-                kernel_regularizer=kernel_regularizer,
-            ),
-            InvertedBottleneck(32, 64, (2,2),
-                seed=seed, regularization=regularization
-            ),
-            InvertedBottleneck(64, 128, (2,2),
-                seed=seed, regularization=regularization
-            ),
-            InvertedBottleneck(128, 256, (2,2),
-                seed=seed, regularization=regularization
-            ),
+            InvertedBottleneck(1280, 512, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(512, 128, strides=1, seed=seed, regularization=regularization),
+            InvertedBottleneck(128, 64, strides=1, seed=seed, regularization=regularization),
+
             layers.Flatten(),
             layers.Dense(1, 
                 kernel_initializer=kernel_initializer,
@@ -117,22 +153,54 @@ class AuxiliaryLayer(tf.keras.layers.Layer):
         return self.extractor(x, training=training)
 
 
-def TestModel_old(input_shape=(384,384), num_classes=5):
-    model = tf.keras.models.Sequential()
-    model.add(layers.Input(shape=(*input_shape, 3)))
-    model.add(layers.Conv2D(32, 3, (2,2)))
-    model.add(InvertedBottleneck(32, 64, (2,2)))
-    model.add(InvertedBottleneck(64, 128, (2,2)))
-    model.add(InvertedBottleneck(128, 256))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(num_classes))
+def TestModel_old(input_shape=(384,384), num_classes=5, regularization=4e-5, seed=1005):
+    model = tf.keras.models.Sequential([
+        layers.Input(shape=(*input_shape, 3)),
+        ConvBnAct(filters=32, kernel_size=3, strides=2, padding='same', use_bias=False, seed=seed),    
+        InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(32, 32, strides=1, seed=seed, regularization=regularization),
 
-    # model= tf.keras.models.Sequential()
-    # model.add(layers.BatchNormalization(axis=-1, epsilon=1e-6, momentum=0.999))
-    # model.add(layers.ReLU(max_value=6))
-    # model.add(ConvBnAct(64, strides=(2,2)))
-    # model.add(ConvBnAct(128, strides=(2,2)))
-    # model.add(ConvBnAct(256))
-    # model.add(layers.Activation('sigmoid'))
+        InvertedBottleneck(32, 64, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(64, 64, strides=1, seed=seed, regularization=regularization),
+
+        InvertedBottleneck(64, 128, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(128, 128, strides=1, seed=seed, regularization=regularization),
+
+        InvertedBottleneck(128, 196, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(196, 196, strides=1, seed=seed, regularization=regularization),
+
+        InvertedBottleneck(196, 256, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(256, 256, strides=1, seed=seed, regularization=regularization),
+
+        InvertedBottleneck(256, 512, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(256, 512, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(512, 512, strides=1, seed=seed, regularization=regularization),
+
+
+        InvertedBottleneck(512, 768, strides=2, seed=seed, regularization=regularization),
+        InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(768, 768, strides=1, seed=seed, regularization=regularization),
+
+        InvertedBottleneck(768, 1280, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+        InvertedBottleneck(1280, 1280, strides=1, seed=seed, regularization=regularization),
+
+        # layers.Flatten(),
+        # layers.Dense(1, 
+        #     # kernel_initializer=kernel_initializer,
+        #     # kernel_regularizer=kernel_regularizer,
+        # )
+    ])
     return model    
 
