@@ -22,7 +22,7 @@ from tensorflow.keras import layers
 
 class ConvBnAct(tf.keras.layers.Layer):
     def __init__(
-        self, filters, kernel_size=3, strides=(1,1),   padding='same', use_bias=False, seed=1005):
+        self, filters, kernel_size=3, strides=(1,1), padding='same', use_bias=False, seed=1005):
         super().__init__()
         kernel_initializer=tf.keras.initializers.HeNormal(seed=seed),
         kernel_regularizer=tf.keras.regularizers.l2(4e-5),
@@ -43,17 +43,4 @@ class ConvBnAct(tf.keras.layers.Layer):
 
 
 
-# Toy model for experiment
-def TestModel(num_classes):
-    model= tf.keras.models.Sequential()
-    model.add(layers.Conv2D(32, 3, (2,2),))
-    model.add(layers.BatchNormalization(axis=-1, epsilon=1e-6, momentum=0.999))
-    model.add(layers.ReLU(max_value=6))
-    model.add(ConvBnAct(64, strides=(2,2)))
-    model.add(ConvBnAct(128, strides=(2,2)))
-    model.add(ConvBnAct(256))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(num_classes))
-    model.add(layers.Activation('sigmoid'))
-    return model    
 
