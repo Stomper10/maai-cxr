@@ -48,7 +48,8 @@ class A2IModel(tf.keras.Model):
 class FeatureExtractor(tf.keras.layers.Layer):
     def __init__(self, drop_rate=0., regularization=4e-5, seed=1005):
         super().__init__()
-        kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)        kernel_regularizer = tf.keras.regularizers.l2(regularization)
+        kernel_initializer = tf.keras.initializers.HeNormal(seed=seed)
+        kernel_regularizer = tf.keras.regularizers.l2(regularization)
 
         self.extractor = tf.keras.models.Sequential([
             ConvBnAct(filters=32, kernel_size=3, strides=2, padding='same', use_bias=False, seed=seed),    
