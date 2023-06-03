@@ -54,6 +54,6 @@ def TestModel(num_classes):
     model.add(ConvBnAct(256))
     model.add(layers.Flatten())
     model.add(layers.Dense(num_classes))
-    model.add(layers.Activation('sigmoid'))
+    # model.add(layers.Activation('sigmoid'))
     return model    
 
