@@ -81,7 +81,6 @@ class FeatureExtractor(tf.keras.layers.Layer):
             InvertedBottleneck(512, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
             InvertedBottleneck(512, 512, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
 
-
             InvertedBottleneck(512, 768, strides=2, drop_rate=drop_rate,  seed=seed, regularization=regularization),
             InvertedBottleneck(768, 768, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),
             InvertedBottleneck(768, 768, strides=1, drop_rate=drop_rate,  seed=seed, regularization=regularization),

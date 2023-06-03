@@ -5,6 +5,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 import pandas as pd
 from tqdm.auto import tqdm as tq
 import tensorflow as tf
+from tensorflow.keras import mixed_precision
 
 # private
 from modules.model import A2IModel, TestModel_old
@@ -14,6 +15,10 @@ import functions
 if __name__ == '__main__':
     # multi-gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
+
+    # mixed precision policy
+    policy = mixed_precision.Policy('mixed_float16')
+    mixed_precision.set_global_policy(policy)
 
     # load datasets
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
