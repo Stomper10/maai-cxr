@@ -30,4 +30,3 @@ configs.image_size = (384, 384)
 
 configs.saved_model_path = None
 
-
