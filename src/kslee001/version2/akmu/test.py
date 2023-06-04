@@ -1,56 +1,23 @@
 import os
-# make error code invisible
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
-import random
-import numpy as np
+import pandas as pd
+from tqdm.auto import tqdm as tq
 import tensorflow as tf
 
 # private
-from modules.backend import TestModel
+from modules.model import TestModel
+from cfg import configs
+import functions
 
-
-# loss : https://www.tensorflow.org/api_docs/python/tf/keras/metrics/AUC
 if __name__ == '__main__':
-    batch_size = 8
-    X = tf.random.normal((256, 128, 128, 3))
-    Y = tf.floor(tf.random.uniform(shape=(256, 5), minval=0, maxval=2))
-    dataset = tf.data.Dataset.from_tensor_slices((X, Y)).batch(batch_size)
+    # load datasets : tf tensor dataset, simlilar to torch dataloader
+    data_dir = configs.data_dir
+    train_data = pd.read_csv(f"{configs.data_dir}/train.csv").fillna(0.0)
+
+    print(train_data)
+    print(train_data['Sex'])
+    print(train_data['Age'])
+    print(train_data.columns)
     
-    model = TestModel(num_classes=5)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
-    criterion = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-    
-    num_epochs = 10
-    for epoch in range(num_epochs):
-        epoch_loss_avg = tf.keras.metrics.Mean()
-        epoch_auc = tf.keras.metrics.AUC(multi_label=True, num_labels=5)
-
-        for batch, (x_batch, y_batch) in enumerate(dataset):
-            with tf.GradientTape() as tape:
-                # forward
-                yhat = model(x_batch, training=True)
-                loss = criterion(y_batch, yhat) # y gt first
-            
-            grads = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
-            epoch_loss_avg.update_state(loss)
-
-            y_pred_prob = tf.nn.sigmoid(yhat)
-            epoch_auc.update_state(y_batch, y_pred_prob)
-
-
-        print("Epoch {}: Loss = {}, AUC = {}".format(epoch, epoch_loss_avg.result(), epoch_auc.result()))
-
-
-    #metric = tf.keras.metrics.AUC(
-    #     multi_label=True,
-    #     num_labels=5,
-    #     from_logits=True,
-    # )
-
-
-
-
