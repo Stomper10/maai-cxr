@@ -17,7 +17,7 @@ if __name__ == '__main__':
     train_data = pd.read_csv(f"{configs.data_dir}/train.csv").fillna(0.0)
     print(train_data['Path'][0])
 
-    train_data['Path'] = train_data['Path'].str.replace("/", "_", regex=False)
+    train_data['Path'] = train_data['Path'].str.789replace("/", "_", regex=False)
     print(train_data['Path'][0])
 
     train_data['Path'] = train_data['Path'].str.replace(configs.dataset_name+'_train_', configs.data_dir+'/train_512/', regex=False)

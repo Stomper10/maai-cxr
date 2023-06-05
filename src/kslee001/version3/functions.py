@@ -59,6 +59,7 @@ def load_datasets(configs):
         uncertain.update(train_data[train_data[column]==-1].index.tolist())
     
     # use certain data only : for train dataset
+    # TODO : 원영이 지시대로 바꾸기
     uncertain = sorted(uncertain)
     uncertain_data = train_data.iloc[uncertain].reset_index(drop=True)
     certain = sorted(set(train_data.index) - set(uncertain))
@@ -102,7 +103,7 @@ def load_datasets(configs):
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train_aux, Y_train))
     train_dataset = train_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
     # apply augmentation for train dataset
-    train_Dataset = train_dataset.map(
+    train_dataset = train_dataset.map(
         lambda X, y : (augmentation(configs=configs)(X[0], training=True), X[1], y) )
     train_dataset = train_dataset.batch(configs.batch_size, drop_remainder=True)
     train_dataset = train_dataset.prefetch(configs.batch_size)

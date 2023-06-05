@@ -63,12 +63,15 @@ if __name__ == '__main__':
             steps_per_epoch=train_dataset.steps_per_epoch,
             start_lr=None, end_lr=None, warmup_fraction=configs.warm_up_rate,
         )
-        optimizer = tf.keras.optimizers.Adam(
+        optimizer = tf.keras.optimizers.AdamW(
             learning_rate=scheduler,
             # weight decay not included now...
         )
         criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False) # True : raw score / False : probability score (from a sigmoid function)
-        metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=configs.num_classes)]
+        metrics = [
+            tf.keras.metrics.AUC(multi_label=True, num_labels=configs.num_classes)
+            # f1
+            ]
         model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
 
         callbacks = [
