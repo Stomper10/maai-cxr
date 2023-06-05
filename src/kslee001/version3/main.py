@@ -11,7 +11,8 @@ import wandb
 from wandb.keras import WandbCallback, WandbMetricsLogger
 
 # private
-from modules.model import A2IModel
+from modules.model import A2IModelBase as A2IModel
+from modules.lr_scheduler import CustomOneCycleSchedule, LearningRateLogger
 from cfg import configs
 import functions
 
@@ -27,9 +28,9 @@ if __name__ == '__main__':
         configs.data_dir = '/home/gyuseonglee/workspace/dataset/chexpert-resized'
     if cluster == 'akmu':
         configs.data_dir = '/data/s1/gyuseong/chexpert'
-    configs.wandb_name = f'a2i-{cluster}'
+    configs.wandb_name = f'a2i-{cluster}-{configs.image_size[0]}'
 
-    # wandb callback
+    # wandb initialization
     wandb.login()
     run = wandb.init(project=configs.wandb_project, name=configs.wandb_name, config=configs)
 
@@ -42,13 +43,13 @@ if __name__ == '__main__':
 
     # load datasets
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
-
+    
     # settings 
     # with strategy.scope():
     model = A2IModel(
         img_size=configs.image_size, 
         num_classes=configs.num_classes, 
-        blocks=[6, 12, 48, 32, 16, 8],
+        blocks=configs.blocks,
         conv_filters=[1280, 1440],
         use_aux_information=configs.use_aux_information, 
         drop_rate=configs.drop_rate, 
@@ -56,17 +57,42 @@ if __name__ == '__main__':
         seed=configs.seed)
     model.initialize()
     model.summary()
-    optimizer = tf.keras.optimizers.Adam(learning_rate=configs.learning_rate)
+    scheduler = CustomOneCycleSchedule(
+        max_lr=configs.learning_rate, 
+        epochs=configs.epochs,
+        steps_per_epoch=train_dataset.steps_per_epoch,
+        start_lr=None, end_lr=None, warmup_fraction=configs.warm_up_rate,
+    )
+    optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)#(learning_rate=configs.learning_rate)
     criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False) # True : raw score / False : probability score (from a sigmoid function)
     metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=5)]
     model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
+
+    callbacks = [
+        WandbCallback(save_model=False), # wandb - system
+        WandbMetricsLogger(log_freq='batch'), # wandb - metrics
+
+        # model checkpoint
+        tf.keras.callbacks.ModelCheckpoint(
+            filepath=configs.saved_model_path,
+            monitor='val_loss',  # Metric to monitor for saving the best model
+            save_best_only=True,  # Save only the best model based on the monitored metric
+            save_weights_only=True,  
+            # Save just the weights. do not save the entire model (including architecture)
+            mode='min',  # 'min' or 'max' depending on whether the monitored metric should be minimized or maximized
+            verbose=0  # do not print messages during saving
+        ),
+
+        # learning rate logger
+        LearningRateLogger(),
+    ]
 
     # training
     model.fit(
         train_dataset, 
         epochs=configs.epochs, 
         validation_data=valid_dataset,
-        callbacks=[WandbCallback(), WandbMetricsLogger(log_freq='batch')]
+        callbacks=callbacks
     )
     loss, auc = model.evaluate(test_dataset)
 

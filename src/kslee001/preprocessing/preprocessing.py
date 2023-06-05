@@ -5,9 +5,10 @@ import cv2
 from tqdm.auto import tqdm as tq
 from joblib import Parallel, delayed
 
+# mode = 'train'
+mode = 'valid'
 image_folder = "/home/n1/gyuseonglee/workspace/datasets/chexpert/CheXpert-v1.0"
-target_folder = "/home/n1/gyuseonglee/workspace/datasets/chexpert-resized-512"
-
+target_folder = f"/home/n1/gyuseonglee/workspace/datasets/chexpert-resized/{mode}_512"
 
 def make_dir(directory:str):
     if not os.path.exists(directory):
@@ -39,15 +40,17 @@ def process(pid, copy_from_list, copy_to_list, target_size=512):
 
 
 if __name__ == '__main__':
-
-    num_patient = 65240    
-    target = num_patient+1
+    
+    start_patient = 1 if mode == 'train' else 64541
+    end_patient = 65240+1 if mode == 'train' else 64740+1
+    # end_patient = 10
 
     print("-- load image directories...")
-    d = sum([glob.glob(f"{image_folder}/train/patient{str(idx).zfill(5)}/study*/*.jpg") for idx in tq(range(1, target))], [])
+    d = sum([glob.glob(f"{image_folder}/{mode}/patient{str(idx).zfill(5)}/study*/*.jpg") for idx in tq(range(start_patient, end_patient))], [])
+
     d = [d[idx] for idx in range(len(d)) if 'lateral' not in d[idx]]
 
-    patients = [d[idx].split("v1.0/train/")[1].split("/study")[0] for idx in range(len(d))]
+    patients = [d[idx].split(f"v1.0/{mode}/")[1].split("/study")[0] for idx in range(len(d))]
     studies  = [d[idx].split(f"{patients[idx]}")[1].split("/view")[0].replace("/", "") for idx in range(len(d))]
     filename = [d[idx].split(f"{studies[idx]}")[1].replace("/", "") for idx in range(len(d))]
     
@@ -56,4 +59,4 @@ if __name__ == '__main__':
 
     print("-- process images...")
     Parallel(n_jobs=-1)(delayed(process)(pid, copy_from_list, copy_to_list, 512)
-    for pid in tq(range(1, len(copy_from_list))))    
+    for pid in tq(range(len(copy_from_list))))    

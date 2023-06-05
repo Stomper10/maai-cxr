@@ -116,7 +116,9 @@ def DenseNetExpert(
 
 
 def DenseNet(
-    blocks,
+    blocks=[6, 12, 48, 32, 16, 8], # DenseNet 201 + additional blocks
+    num_classes=5, 
+    activation='sigmoid',
     input_shape=None,
     seed=1005,
     reg=0.
@@ -130,31 +132,33 @@ def DenseNet(
 
     # layers
     x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)))(img_input)
-    x = layers.Conv2D(64, 7, strides=2, use_bias=False, name="conv1/conv",
+    x = layers.Conv2D(64, 7, strides=2, use_bias=False, name="stem/conv",
         kernel_initializer=initializer,
         kernel_regularizer=regularizer,
     )(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name="conv1/bn"
+        axis=bn_axis, epsilon=1.001e-5, name="stem/bn"
     )(x)
-    x = layers.Activation("relu", name="conv1/relu")(x)
+    x = layers.Activation("relu", name="stem/relu")(x)
     x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)))(x)
-    x = layers.MaxPooling2D(3, strides=2, name="pool1")(x)
+    x = layers.MaxPooling2D(3, strides=2, name="stem_pool")(x)
 
-    x = dense_block(x, blocks[0], name="conv2", seed=seed, reg=reg)
-    x = transition_block(x, 0.5, name="pool2")
-    x = dense_block(x, blocks[1], name="conv3", seed=seed, reg=reg)
-    x = transition_block(x, 0.5, name="pool3")
-    x = dense_block(x, blocks[2], name="conv4", seed=seed, reg=reg)
-    x = transition_block(x, 0.5, name="pool4")
-    x = dense_block(x, blocks[3], name="conv5", seed=seed, reg=reg)
-    x = transition_block(x, 0.5, name="pool5")
-    x = dense_block(x, blocks[4], name="conv6", seed=seed, reg=reg)
-    x = transition_block(x, 0.5, name="pool6")
-    x = dense_block(x, blocks[5], name="conv7", seed=seed, reg=reg)
-
+    # densenet blocks
+    for b_idx in range(len(blocks)-1):
+        x = dense_block(x, blocks[b_idx], name=f"block{b_idx}", seed=seed, reg=reg)
+        x = transition_block(x, 0.5, name=f"pool{b_idx}")
+    
+    # final densenet block
+    x = dense_block(x, blocks[-1], name=f"block{len(blocks)}",
+        seed=seed, reg=reg)
     x = layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5, name="bn")(x)
     x = layers.Activation("relu", name="relu")(x)
+
+    # classifier head
+    x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
+    x = layers.Dense(num_classes, activation=activation,
+        kernel_initializer=initializer,
+        kernel_regularizer=regularizer,)(x)
 
     # Create model.
     model = training.Model(img_input, x, name="densenet")

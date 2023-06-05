@@ -37,8 +37,15 @@ def load_datasets(configs):
     del test_data['Frontal/Lateral']
 
     # fix image path
-    train_data['Path'] = train_data['Path'].str.replace(configs.dataset_name, configs.data_dir, regex=False)
-    test_data['Path'] = test_data['Path'].str.replace(configs.dataset_name, configs.data_dir, regex=False)
+    if configs.image_size[0] == 384:
+        train_data['Path'] = train_data['Path'].str.replace(configs.dataset_name, configs.data_dir, regex=False)
+        test_data['Path'] = test_data['Path'].str.replace(configs.dataset_name, configs.data_dir, regex=False)
+    if configs.image_size[0] == 512:
+        train_data['Path'] = train_data['Path'].str.replace("/", "_", regex=False)
+        train_data['Path'] = train_data['Path'].str.replace(configs.dataset_name+'_train_', configs.data_dir+'/train_512/', regex=False)
+
+        test_data['Path'] = test_data['Path'].str.replace("/", "_", regex=False)
+        test_data['Path'] = test_data['Path'].str.replace(configs.dataset_name+'_valid_', configs.data_dir+'/valid_512/', regex=False)
 
     # convert Sex to int format (auxiliary)
     train_data['Sex'] = np.where(train_data['Sex']=='Male', 0, 1)
@@ -62,13 +69,16 @@ def load_datasets(configs):
     # 'uncertain_data' has been defined for potential future requirements
 
     # train-valid split
+    if configs.cutoff is not None:
+        # use small part of dataset
+        train_data = train_data[:configs.cutoff] 
+
     train_data, valid_data = train_test_split(train_data, test_size=configs.valid_ratio)
     train_data = train_data.reset_index(drop=True)
     valid_data = valid_data.reset_index(drop=True)
 
-    # normalize 'Age' using StandardScaler
-    # after train-valid-test split
-    # note that valid data or test data should not be scaled using a scaler
+    # normalize 'Age' using StandardScaler after train-valid-test split
+    # note that valid data or test data MUST NOT be fitted 
     scaler = StandardScaler()
     train_data['Age'] = scaler.fit_transform(train_data['Age'].values.reshape(-1, 1))
     valid_data['Age'] = scaler.transform(valid_data['Age'].values.reshape(-1, 1))
@@ -90,16 +100,23 @@ def load_datasets(configs):
     # dataset
     # note that map method and batch method should be applied in sequence
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train_aux, Y_train))
-    train_dataset = train_dataset.map(process_path_train, num_parallel_calls=AUTOTUNE)
-    train_dataset = train_dataset.batch(configs.batch_size)
+    train_dataset = train_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
+    # apply augmentation for train dataset
+    train_Dataset = train_dataset.map(
+        lambda X, y : (augmentation(configs=configs)(X[0], training=True), X[1], y) )
+    train_dataset = train_dataset.batch(configs.batch_size, drop_remainder=True)
+    train_dataset = train_dataset.prefetch(configs.batch_size)
+    train_dataset.steps_per_epoch = len(X_train) // configs.batch_size
 
     valid_dataset = tf.data.Dataset.from_tensor_slices((X_valid, X_valid_aux, Y_valid))
-    valid_dataset = valid_dataset.map(process_path_test, num_parallel_calls=AUTOTUNE)
+    valid_dataset = valid_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
     valid_dataset = valid_dataset.batch(configs.batch_size)
+    valid_dataset = valid_dataset.prefetch(configs.batch_size)
 
     test_dataset = tf.data.Dataset.from_tensor_slices((X_test, X_test_aux, Y_test))
-    test_dataset = test_dataset.map(process_path_test, num_parallel_calls=AUTOTUNE)
+    test_dataset = test_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
     test_dataset = test_dataset.batch(configs.batch_size)
+    test_dataset = test_dataset.prefetch(configs.batch_size)
 
 
     # additional dataset for semi-supervised learning    
@@ -108,13 +125,13 @@ def load_datasets(configs):
     Y_uncertain = uncertain_data.iloc[:, 3:].values.astype(np.float32)
 
     uncertain_dataset = tf.data.Dataset.from_tensor_slices((X_uncertain, X_uncertain_aux, Y_uncertain))
-    uncertain_dataset = uncertain_dataset.map(process_path_test, num_parallel_calls=AUTOTUNE)
+    uncertain_dataset = uncertain_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
     uncertain_dataset = uncertain_dataset.batch(configs.batch_size)
 
     return train_dataset, valid_dataset, test_dataset, uncertain_dataset
 
 
-def process_path_train(X, X_aux, label):
+def __OBSOLTE__process_path_train(X, X_aux, label):
     # Read the image from the path
     image = tf.io.read_file(X)
     image = tf.image.decode_jpeg(image, channels=3)
@@ -129,9 +146,43 @@ def process_path_train(X, X_aux, label):
     return (image, X_aux), label
 
 
-def process_path_test(X, X_aux, label):
+def process_path(X, X_aux, label):
     # Read the image from the path
     image = tf.io.read_file(X)
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.cast(image, tf.float32) / 255.0
     return (image, X_aux), label
+
+
+def augmentation(configs):
+    aug = tf.keras.Sequential([
+        # random translation
+        tf.keras.layers.RandomTranslation(
+            height_factor=configs.translation_height_factor,
+            width_factor =configs.translation_width_factor,
+            fill_mode='reflect',
+            interpolation='bilinear',
+            seed=configs.seed,
+            fill_value=0.0,
+        ),
+        
+        # random rotation
+        tf.keras.layers.RandomRotation(
+            factor=configs.rotation_factor,
+            fill_mode='reflect',
+            interpolation='bilinear',
+            seed=configs.seed,
+            fill_value=0.0,
+        ),
+
+        # random scaling -> scaling tensor values?? scaling tensor size ???
+        tf.keras.layers.RandomZoom(
+            height_factor=configs.zoom_height_factor,
+            width_factor=configs.zoom_width_factor,
+            fill_mode='reflect',
+            interpolation='bilinear',
+            seed=configs.seed,
+            fill_value=0.0,
+        )
+    ])
+    return aug
