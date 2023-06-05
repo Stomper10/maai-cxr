@@ -5,8 +5,6 @@ import tensorflow.keras.layers as layers
 #                                      GlobalAveragePooling2D, Layer,
 #                                      LayerNormalization)
 from tensorflow.keras.models import Model
-from tensorflow.keras.applications.densenet import DenseNet201
-# private
 from .densenet import DenseNet, DenseNetExpert
 
 

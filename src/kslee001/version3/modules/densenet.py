@@ -165,3 +165,31 @@ def DenseNet(
 
     return model
 
+
+
+def drop_path(inputs, drop_rate, is_training):
+    # borrowed from https://github.com/rishigami/Swin-Transformer-TF/blob/main/swintransformer/model.py
+    if (not is_training) or (drop_rate == 0.):
+        return inputs
+
+    # Compute keep_prob
+    keep_prob = 1.0 - drop_rate
+
+    # Compute drop_connect tensor
+    random_tensor = keep_prob
+    shape = (tf.shape(inputs)[0],) + (1,) * \
+        (len(tf.shape(inputs)) - 1)
+    random_tensor += tf.random.uniform(shape, dtype=inputs.dtype)
+    binary_tensor = tf.floor(random_tensor)
+    output = tf.math.divide(inputs, keep_prob) * binary_tensor
+    return output
+
+
+class DropPath(tf.keras.layers.Layer):
+    # borrowed from https://github.com/rishigami/Swin-Transformer-TF/blob/main/swintransformer/model.py
+    def __init__(self, drop_rate=None):
+        super().__init__()
+        self.drop_rate = drop_rate
+
+    def call(self, x, training=None):
+        return drop_path(x, self.drop_rate, training)

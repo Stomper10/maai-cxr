@@ -45,54 +45,58 @@ if __name__ == '__main__':
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
     
     # settings 
-    # with strategy.scope():
-    model = A2IModel(
-        img_size=configs.image_size, 
-        num_classes=configs.num_classes, 
-        blocks=configs.blocks,
-        conv_filters=[1280, 1440],
-        use_aux_information=configs.use_aux_information, 
-        drop_rate=configs.drop_rate, 
-        reg=configs.regularization, 
-        seed=configs.seed)
-    model.initialize()
-    model.summary()
-    scheduler = CustomOneCycleSchedule(
-        max_lr=configs.learning_rate, 
-        epochs=configs.epochs,
-        steps_per_epoch=train_dataset.steps_per_epoch,
-        start_lr=None, end_lr=None, warmup_fraction=configs.warm_up_rate,
-    )
-    optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)#(learning_rate=configs.learning_rate)
-    criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False) # True : raw score / False : probability score (from a sigmoid function)
-    metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=5)]
-    model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
+    with strategy.scope():
+        model = A2IModel(
+            img_size=configs.image_size, 
+            num_classes=configs.num_classes, 
+            blocks=configs.blocks,
+            conv_filters=configs.conv_filters,
+            use_aux_information=configs.use_aux_information, 
+            drop_rate=configs.drop_rate, 
+            reg=configs.regularization, 
+            seed=configs.seed)
+        model.initialize()
+        model.summary()
+        scheduler = CustomOneCycleSchedule(
+            max_lr=configs.learning_rate, 
+            epochs=configs.epochs,
+            steps_per_epoch=train_dataset.steps_per_epoch,
+            start_lr=None, end_lr=None, warmup_fraction=configs.warm_up_rate,
+        )
+        optimizer = tf.keras.optimizers.Adam(
+            learning_rate=scheduler,
+            # weight decay not included now...
+        )
+        criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False) # True : raw score / False : probability score (from a sigmoid function)
+        metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=configs.num_classes)]
+        model.compile(optimizer=optimizer, loss=criterion, metrics=metrics) 
 
-    callbacks = [
-        WandbCallback(save_model=False), # wandb - system
-        WandbMetricsLogger(log_freq='batch'), # wandb - metrics
+        callbacks = [
+            WandbCallback(save_model=False), # wandb - system
+            WandbMetricsLogger(log_freq='batch'), # wandb - metrics
 
-        # model checkpoint
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=configs.saved_model_path,
-            monitor='val_loss',  # Metric to monitor for saving the best model
-            save_best_only=True,  # Save only the best model based on the monitored metric
-            save_weights_only=True,  
-            # Save just the weights. do not save the entire model (including architecture)
-            mode='min',  # 'min' or 'max' depending on whether the monitored metric should be minimized or maximized
-            verbose=0  # do not print messages during saving
-        ),
+            # model checkpoint
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=configs.saved_model_path,
+                monitor='val_loss', 
+                save_best_only=True,  # Save only the best model based on the monitored metric
+                save_weights_only=True,  
+                # Save just the weights. do not save the entire model (architecture)
+                mode='min', 
+                verbose=0  # do not print messages during saving
+            ),
 
-        # learning rate logger
-        LearningRateLogger(),
-    ]
+            # learning rate logger
+            LearningRateLogger(),
+        ]
 
     # training
     model.fit(
         train_dataset, 
         epochs=configs.epochs, 
         validation_data=valid_dataset,
-        callbacks=callbacks
+        callbacks=callbacks,
+        workers=configs.num_workers,
     )
     loss, auc = model.evaluate(test_dataset)
 
