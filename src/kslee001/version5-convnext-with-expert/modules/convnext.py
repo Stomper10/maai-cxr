@@ -113,10 +113,10 @@ def Expert(
     img_input = layers.Input(shape=input_shape)    
 
     # layers
-    # x = ConvBnAct(filters=conv_filters[0], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(img_input)
-    # x = ConvBnAct(filters=conv_filters[1], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(x)
+    x = ConvBnAct(filters=conv_filters[0], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(img_input)
+    x = ConvBnAct(filters=conv_filters[1], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(x)
 
-    x = layers.GlobalAveragePooling2D(name='convnext_expert_avg_pool')(img_input)
+    x = layers.GlobalAveragePooling2D(name='convnext_expert_avg_pool')(x)
     x = layers.Dense(num_classes, activation=activation,
         kernel_initializer=initializer,
         kernel_regularizer=regularizer,)(x)

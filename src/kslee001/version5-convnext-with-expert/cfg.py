@@ -13,7 +13,7 @@ configs.data_dir = 100 # defined at runtime
 configs.dataset_name = 'CheXpert-v1.0'
 configs.wandb_project = 'AAI'
 configs.wandb_name = None # defined at runtime
-configs.model_name = 'ConvNeXt' # defined at runtime
+configs.model_name = 'ConvNeXtExperts' # defined at runtime
 
 # training configuration
 configs.cutoff = 1000  # for test ('None' for full model training)
