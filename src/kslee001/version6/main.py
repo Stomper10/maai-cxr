@@ -23,6 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--cluster', action='store')
     parser.add_argument('-b', '--backbone', action='store', default='densenet')
     parser.add_argument('-e', '--add_expert', action='store_true')
+    parser.add_argument('-t', '--test', action='store_true')
     args = parser.parse_args()
     cluster = args.cluster
     if cluster == 'gsds-ab':
@@ -33,6 +34,7 @@ if __name__ == '__main__':
         configs.dataset.data_dir = '/data/s1/gyuseong/chexpert-resized'
     configs.model.backbone = args.backbone
     configs.model.classifier.add_expert = bool(args.add_expert)
+    configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.project_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
 
@@ -52,8 +54,8 @@ if __name__ == '__main__':
     train_dataset, valid_dataset, test_dataset = functions.load_datasets(configs) 
     
     # settings 
-    # with strategy.scope():
-    if True: # single-gpu training (debug)
+    with strategy.scope():
+    # if True: # single-gpu training (debug)
         model = A2IModel(configs=configs)
         model.initialize()
         model.summary()
@@ -70,10 +72,8 @@ if __name__ == '__main__':
             beta_2=configs.optimizer.beta_2,
             ema_momentum=configs.optimizer.ema_momentum,
         )
-        # criterion = tf.keras.losses.BinaryCrossentropy(from_logits=False) # True : raw score / False : probability score (from a sigmoid function)
-        # metrics = [tf.keras.metrics.AUC(multi_label=True, num_labels=configs.num_classes)]
-        model.compile(optimizer=optimizer) 
 
+        model.compile(optimizer=optimizer) 
         callbacks = [
             # model checkpoint
             tf.keras.callbacks.ModelCheckpoint(
@@ -104,5 +104,3 @@ if __name__ == '__main__':
 
     # evaluation
     print(losses)
-    # print("Test Loss:", loss)
-    # print("Test AUC:", auc)

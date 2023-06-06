@@ -32,11 +32,31 @@ class A2IModel(tf.keras.Model):
         self.plef_auc = tf.keras.metrics.AUC()
 
         # loss functions
-        self.criterion_atel = tf.keras.losses.BinaryCrossentropy(from_logits=False, label_smoothing=self.configs.model.label_smoothing)
-        self.criterion_card = tf.keras.losses.CategoricalCrossentropy(from_logits=False, label_smoothing=self.configs.model.label_smoothing)
-        self.criterion_cons = tf.keras.losses.BinaryCrossentropy(from_logits=False, label_smoothing=self.configs.model.label_smoothing)
-        self.criterion_edem = tf.keras.losses.BinaryCrossentropy(from_logits=False, label_smoothing=self.configs.model.label_smoothing)
-        self.criterion_plef = tf.keras.losses.CategoricalCrossentropy(from_logits=False, label_smoothing=self.configs.model.label_smoothing)
+        self.criterion_atel = tf.keras.losses.BinaryCrossentropy(
+            from_logits=False, 
+            label_smoothing=self.configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE,    
+        )
+        self.criterion_card = tf.keras.losses.CategoricalCrossentropy(
+            from_logits=False, 
+            label_smoothing=self.configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE,    
+        )
+        self.criterion_cons = tf.keras.losses.BinaryCrossentropy(
+            from_logits=False, 
+            label_smoothing=self.configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE,    
+        )
+        self.criterion_edem = tf.keras.losses.BinaryCrossentropy(
+            from_logits=False, 
+            label_smoothing=self.configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE,    
+        )
+        self.criterion_plef = tf.keras.losses.CategoricalCrossentropy(
+            from_logits=False, 
+            label_smoothing=self.configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE,    
+        )
 
 
         """ MODEL ARCHITECTURE """
@@ -178,11 +198,11 @@ class A2IModel(tf.keras.Model):
         return atel_gt, card_gt, cons_gt, edem_gt, plef_gt, cons_indices
 
 
-    def forward(self, img, aux_info, processed_y):
+    def forward(self, img, aux_info, processed_y, training=False):
         atel_gt, card_gt, cons_gt, edem_gt, plef_gt, cons_indices = processed_y
 
         """forward pass"""
-        atel_pred, card_pred, cons_pred, edem_pred, plef_pred = self(inputs=(img, aux_info), training=True)
+        atel_pred, card_pred, cons_pred, edem_pred, plef_pred = self(inputs=(img, aux_info), training=training)
 
         """loss calculation (each label)"""
         # atel : ones (replace -1 with 1)
@@ -223,7 +243,7 @@ class A2IModel(tf.keras.Model):
 
         # calculate loss & logging
         with tf.GradientTape() as tape:
-            total_loss = self.forward(img, aux_info, processed_y)
+            total_loss = self.forward(img, aux_info, processed_y, training=True)
 
         # model weight update
         gradients = tape.gradient(total_loss, self.trainable_variables)
@@ -246,7 +266,7 @@ class A2IModel(tf.keras.Model):
         processed_y = self.label_processing(y)
 
         # calculate loss & logging
-        total_loss = self.forward(img, aux_info, processed_y)
+        total_loss = self.forward(img, aux_info, processed_y, training=False)
 
         return {
             "loss":self.loss_tracker.result(),

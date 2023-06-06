@@ -24,7 +24,7 @@ configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation'
 configs.dataset.num_classes = len(configs.dataset.target_columns)
 configs.dataset.image_size = (512, 512) # (384, 384), (320, 320)
 configs.dataset.image_channels = 1
-configs.dataset.cutoff = 10000 # for test ('None' for full model training)
+configs.dataset.cutoff = None # 10000 for test, 'None' for full model training
 
 """data augmentation configuration"""
 configs.augmentation = EasyDict()
@@ -33,7 +33,6 @@ configs.augmentation.translation_width_factor  = (-0.01, 0.01)
 configs.augmentation.zoom_height_factor = (-0.01, 0.01) # -3% ~ 3%
 configs.augmentation.zoom_width_factor  = (-0.01, 0.01)
 configs.augmentation.rotation_factor = (-0.01, 0.01)  # -3% ~ 3%
-
 
 """wandb logger"""
 configs.wandb = EasyDict()
