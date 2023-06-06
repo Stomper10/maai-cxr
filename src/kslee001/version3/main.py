@@ -38,8 +38,8 @@ if __name__ == '__main__':
     strategy = tf.distribute.MirroredStrategy()
 
     # mixed precision policy
-    policy = mixed_precision.Policy('mixed_float16')
-    mixed_precision.set_global_policy(policy)
+    # policy = mixed_precision.Policy('mixed_float16')
+    # mixed_precision.set_global_policy(policy)
 
     # load datasets
     train_dataset, valid_dataset, test_dataset, uncertain_dataset = functions.load_datasets(configs) 
@@ -82,8 +82,8 @@ if __name__ == '__main__':
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=configs.saved_model_path,
                 monitor='val_loss', 
-                save_best_only=True,  # Save only the best model based on the monitored metric
-                save_weights_only=True,  
+                save_best_only=False,  # Save only the best model based on the monitored metric
+                save_weights_only=False,  
                 # Save just the weights. do not save the entire model (architecture)
                 mode='min', 
                 verbose=0  # do not print messages during saving

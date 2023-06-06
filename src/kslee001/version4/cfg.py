@@ -14,7 +14,7 @@ configs.wandb_name = None # defined at runtime
 # training configuration
 configs.cutoff = None  # for test ('None' for full model training)
 configs.batch_size = 32
-configs.epochs = 15
+configs.epochs = 10
 configs.learning_rate = 0.0001
 configs.weight_decay = 0.0004 #  
 configs.beta_1 = 0.9
@@ -38,7 +38,7 @@ configs.image_size = (512, 512)
 
 # misc.
 configs.num_workers = 16
-configs.saved_model_path = "./best_model.h5"
+configs.saved_model_path = "./densenet" + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
 
 # data augmentation configuration
 configs.translation_height_factor = (-0.03, 0.03) # -3% ~ 3%
