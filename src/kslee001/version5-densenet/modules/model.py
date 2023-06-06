@@ -24,10 +24,10 @@ class A2IModelBase(tf.keras.Model):
         self.plef_auc = tf.keras.metrics.AUC()
 
         # loss functions
-        self.criterion_atel = tf.keras.losses.BinaryCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
+        self.criterion_atel = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
         self.criterion_card = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
-        self.criterion_cons = tf.keras.losses.BinaryCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
-        self.criterion_edem = tf.keras.losses.BinaryCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
+        self.criterion_cons = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
+        self.criterion_edem = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
         self.criterion_plef = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=self.configs.label_smoothing)
 
         # architecture 0 : image augmentation (training data only)
@@ -73,7 +73,7 @@ class A2IModelBase(tf.keras.Model):
         # atel : ones (label '-1' as '1')
         # [0,1] binary classification
         self.atel_classifier = tf.keras.layers.Dense(
-            1,
+            2,
             kernel_initializer=initializer,
             kernel_regularizer=regularizer,
         )
@@ -89,7 +89,7 @@ class A2IModelBase(tf.keras.Model):
         # cons : ignore (label '-1' as '0', but no loss included) 
         # [0,1] binary classification
         self.cons_classifier = tf.keras.layers.Dense(
-            1,
+            2,
             kernel_initializer=initializer,
             kernel_regularizer=regularizer,
         )
@@ -97,7 +97,7 @@ class A2IModelBase(tf.keras.Model):
         # edem : ones (label '-1' as '1')
         # [0, 1] binary classification 
         self.edem_classifier = tf.keras.layers.Dense(
-            1,
+            2,
             kernel_initializer=initializer,
             kernel_regularizer=regularizer,
         )
@@ -129,6 +129,7 @@ class A2IModelBase(tf.keras.Model):
         #     out = out + information
         return (atel_pred, card_pred, cons_pred, edem_pred, plef_pred)
 
+
     def train_step(self, data):
         (img, aux_info), y = data
 
@@ -138,17 +139,11 @@ class A2IModelBase(tf.keras.Model):
         """label (Y) setting"""
         # atel : ones (replace -1 with 1)
         atel_gt = y[:, 0]
-        atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(1.0, dtype=self.configs.tf_dtype), 
-                           atel_gt) # float values needed !
+        atel_gt = self.replace_value_onehot(array=atel_gt, value=1.0, classes=2)
 
         # card : multi (replace -1 with 2)
         card_gt = y[:, 1]
-        card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.tf_dtype), 
-                           card_gt) 
-        card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-        card_gt = card_gt = tf.one_hot(card_gt, depth=3)
+        card_gt = self.replace_value_onehot(array=card_gt, value=2.0, classes=3)
 
         # cons : ignore
         cons_gt = y[:, 2]
@@ -156,28 +151,18 @@ class A2IModelBase(tf.keras.Model):
         cons_indices = tf.reshape(cons_indices, [-1])
         cons_gt = tf.gather(cons_gt, cons_indices)
 
-        # edem : ones
+        # edem : ones (replace -1 with 1)
         edem_gt = y[:, 3]
-        edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(1.0, dtype=self.configs.tf_dtype), 
-                           edem_gt)
+        edem_gt = self.replace_value_onehot(array=edem_gt, value=1.0, classes=2)
 
-        # plef : multi
+        # plef : multi (replace -1 with 2)
         plef_gt = y[:, 4]
-        plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.tf_dtype), 
-                           plef_gt) 
-        plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-        plef_gt = plef_gt = tf.one_hot(plef_gt, depth=3)
+        plef_gt = self.replace_value_onehot(array=plef_gt, value=2.0, classes=3)
+
 
         with tf.GradientTape() as tape:
             """forward pass"""
             atel_pred, card_pred, cons_pred, edem_pred, plef_pred = self(inputs=(img, aux_info), training=True)
-
-            print(atel_pred)
-            print(atel_pred.shape)
-            print(atel_gt.shape)
-            exit()
 
             """loss calculation (each label)"""
             # atel : ones (replace -1 with 1)
@@ -198,11 +183,11 @@ class A2IModelBase(tf.keras.Model):
 
             # TODO: Decide whether to use weighted sum or simple averaging for combining losses
             total_loss = atel_loss + card_loss + cons_loss + edem_loss + plef_loss 
-            scaled_loss = self.optimizer.get_scaled_loss(total_loss)
+            # scaled_loss = self.optimizer.get_scaled_loss(total_loss)
             
-        scaled_gradients = tape.gradient(scaled_loss, self.trainable_variables)
-        gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
-        # gradients = tape.gradient(total_loss, self.trainable_variables)
+        # scaled_gradients = tape.gradient(total_loss, self.trainable_variables)
+        # gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
+        gradients = tape.gradient(total_loss, self.trainable_variables)
 
         # model weight update
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
@@ -234,17 +219,11 @@ class A2IModelBase(tf.keras.Model):
         """label (Y) setting"""
         # atel : ones (replace -1 with 1)
         atel_gt = y[:, 0]
-        atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(1.0, dtype=self.configs.tf_dtype), 
-                           atel_gt) # float values needed !
+        atel_gt = self.replace_value_onehot(array=atel_gt, value=1.0, classes=2)
 
         # card : multi (replace -1 with 2)
         card_gt = y[:, 1]
-        card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.tf_dtype), 
-                           card_gt) 
-        card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-        card_gt = card_gt = tf.one_hot(card_gt, depth=3)
+        card_gt = self.replace_value_onehot(array=card_gt, value=2.0, classes=3)
 
         # cons : ignore
         cons_gt = y[:, 2]
@@ -252,19 +231,14 @@ class A2IModelBase(tf.keras.Model):
         cons_indices = tf.reshape(cons_indices, [-1])
         cons_gt = tf.gather(cons_gt, cons_indices)
 
-        # edem : ones
+        # edem : ones (replace -1 with 1)
         edem_gt = y[:, 3]
-        edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(1.0, dtype=self.configs.tf_dtype), 
-                           edem_gt)
+        edem_gt = self.replace_value_onehot(array=edem_gt, value=1.0, classes=2)
 
-        # plef : multi
+        # plef : multi (replace -1 with 2)
         plef_gt = y[:, 4]
-        plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.tf_dtype), 
-                           plef_gt) 
-        plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-        plef_gt = plef_gt = tf.one_hot(plef_gt, depth=3)
+        plef_gt = self.replace_value_onehot(array=plef_gt, value=2.0, classes=3)
+
 
         # with tf.GradientTape() as tape:
         if True:
@@ -282,7 +256,6 @@ class A2IModelBase(tf.keras.Model):
             cons_pred = tf.gather(cons_pred, cons_indices) # ignore some predictions
             cons_loss = self.criterion_cons(cons_gt, cons_pred)
             
-
             # edem : ones
             edem_loss = self.criterion_edem(edem_gt, edem_pred)
 
@@ -322,3 +295,14 @@ class A2IModelBase(tf.keras.Model):
     def initialize(self):
         self((tf.zeros((1, *self.configs.image_size, IMAGE_CHANNEL)), tf.zeros((1, 2))))
         self.augmentation(tf.zeros((1, *self.configs.image_size, IMAGE_CHANNEL)))
+
+
+    def replace_value_onehot(self, array, value, classes):
+        array = tf.where(array == tf.constant(-1.0, dtype=self.configs.tf_dtype), 
+                           tf.constant(value, dtype=self.configs.tf_dtype), 
+                           array) 
+        array = tf.cast(array, dtype=tf.int32)
+        array = tf.one_hot(array, depth=classes)
+
+        return array
+

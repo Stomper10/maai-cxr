@@ -13,10 +13,10 @@ configs.data_dir = 100 # defined at runtime
 configs.dataset_name = 'CheXpert-v1.0'
 configs.wandb_project = 'AAI'
 configs.wandb_name = None # defined at runtime
-configs.model_name = 'ConvNeXtExperts' # defined at runtime
+configs.model_name = 'DenseNet' # defined at runtime
 
 # training configuration
-configs.cutoff = None # for test ('None' for full model training)
+configs.cutoff = 10000 # for test ('None' for full model training)
 configs.batch_size = 16
 configs.epochs = 5
 configs.valid_ratio = 0.1
@@ -40,7 +40,7 @@ configs.use_aux_information = True
 configs.label_smoothing = 0.1
 
 configs.layer_scale_init_value = 1e-6
-configs.precision = 16
+configs.precision = 32
 configs.tf_dtype = tf.float16 if configs.precision==16 else tf.float32
 
 

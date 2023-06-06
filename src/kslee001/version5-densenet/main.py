@@ -38,7 +38,7 @@ if __name__ == '__main__':
     strategy = tf.distribute.MirroredStrategy()
 
     # mixed precision policy
-    policy = mixed_precision.Policy('mixed_float16')
+    policy = mixed_precision.Policy('mixed_float16' if configs.precision == 16 else 'float32')
     mixed_precision.set_global_policy(policy)
 
     # load datasets
