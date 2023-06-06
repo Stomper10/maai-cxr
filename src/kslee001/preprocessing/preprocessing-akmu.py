@@ -1,15 +1,12 @@
 import os
 import glob
+import argparse
 import numpy as np
 import cv2
 from tqdm.auto import tqdm as tq
 from joblib import Parallel, delayed
 
-# mode = 'train'
-mode = 'train'
-size = 320
-image_folder = "/data/s1/gyuseong/CheXpert-v1.0"
-target_folder = f"/data/s1/gyuseong/chexpert-resized/{mode}_{size}"
+
 
 def make_dir(directory:str):
     if not os.path.exists(directory):
@@ -42,6 +39,18 @@ def process(pid, copy_from_list, copy_to_list, target_size=320):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', action='store', default='valid')
+    parser.add_argument('-s', '--size', action='store', default=320)
+    args = parser.parse_args()
+    mode = args.mode
+    size = int(args.size)
+
+    # mode = 'train'
+    # size = 320
+    image_folder = "/data/s1/gyuseong/CheXpert-v1.0"
+    target_folder = f"/data/s1/gyuseong/chexpert-resized/{mode}_{size}"
+
     make_dir(target_folder)
     
     start_patient = 1 if mode == 'train' else 64541

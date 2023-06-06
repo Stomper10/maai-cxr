@@ -16,7 +16,7 @@ configs.wandb_name = None # defined at runtime
 configs.model_name = 'ConvNeXtExperts' # defined at runtime
 
 # training configuration
-configs.cutoff = 1000  # for test ('None' for full model training)
+configs.cutoff = None # for test ('None' for full model training)
 configs.batch_size = 16
 configs.epochs = 5
 configs.valid_ratio = 0.1
@@ -30,7 +30,7 @@ configs.beta_2 = 0.999
 configs.ema_momentum = 0.99
 
 # model configuration
-configs.blocks = [4, 4, 4, 4] # densenet
+configs.blocks = configs.blocks = [6, 12, 48, 32] # densenet201
 configs.depth = [3, 3, 27, 3]
 configs.projection_dims = [128, 256, 512, 1024]  # number of convolution blocks in each stage
 configs.conv_filters = [1280, 1440] # not implemented : number of convolution filters in each expert 

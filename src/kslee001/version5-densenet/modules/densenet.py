@@ -89,9 +89,12 @@ def conv_block(x, growth_rate, name, seed=1005, reg=0.):
     return x
 
 
-def DenseNetExpert(    
+def Expert(    
     input_shape,
-    idx,
+    num_classes,
+    conv_filters=[1280, 512],
+    name='',
+    activation=None,
     seed=1005,
     reg=0.
 ):
@@ -105,13 +108,15 @@ def DenseNetExpert(
     img_input = layers.Input(shape=input_shape)    
 
     # layers
-    x = layers.Flatten()(img_input)
-    x = layers.Dense(1, 
+    x = ConvBnAct(filters=conv_filters[0], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(img_input)
+    x = ConvBnAct(filters=conv_filters[1], kernel_size=3, strides=(2,2), padding='same', use_bias=False, seed=seed)(x)
+
+    x = layers.GlobalAveragePooling2D(name='convnext_expert_avg_pool')(x)
+    x = layers.Dense(num_classes, activation=activation,
         kernel_initializer=initializer,
-        kernel_regularizer=regularizer,
-    )(x)
+        kernel_regularizer=regularizer,)(x)
     
-    model = training.Model(img_input, x, name=f"densenet_expert{idx}")
+    model = training.Model(img_input, x, name=f"convnext_expert_{name}")
     return model
 
 
@@ -157,9 +162,9 @@ def DenseNet(
 
     # classifier head
     x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
-    x = layers.Dense(num_classes, activation=activation,
-        kernel_initializer=initializer,
-        kernel_regularizer=regularizer,)(x)
+    # x = layers.Dense(num_classes, activation=activation,
+    #     kernel_initializer=initializer,
+    #     kernel_regularizer=regularizer,)(x)
 
     # Create model.
     model = training.Model(img_input, x, name="densenet")
@@ -194,3 +199,26 @@ class DropPath(tf.keras.layers.Layer):
 
     def call(self, x, training=None):
         return drop_path(x, self.drop_rate, training)
+
+
+class ConvBnAct(tf.keras.layers.Layer):
+    def __init__(
+        self, filters, kernel_size=3, strides=(1,1), padding='same', use_bias=False, seed=1005):
+        super().__init__()
+        kernel_initializer=tf.keras.initializers.HeNormal(seed=seed),
+        kernel_regularizer=tf.keras.regularizers.l2(4e-5),
+        
+        self.conv = tf.keras.layers.Conv2D(
+            filters, 
+            kernel_size=kernel_size, 
+            strides=strides,
+            padding=padding,
+            use_bias=use_bias,
+        )
+        self.bn = tf.keras.layers.BatchNormalization()
+        self.act = layers.ReLU(6)
+
+    def call(self, x, training=False):
+        x = self.conv(x)
+        x = self.bn(x, training=training)
+        return self.act(x)
