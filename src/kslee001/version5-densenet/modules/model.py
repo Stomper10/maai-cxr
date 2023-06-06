@@ -115,7 +115,9 @@ class A2IModelBase(tf.keras.Model):
 
     def call(self, inputs, training=False):
         x, x_aux = inputs
-        
+        """augmentation during training"""
+        x = self.augmentation(img, training=training)
+
         feature = self.feature_extractor(x)
         
         atel_pred = self.atel_classifier(feature)
@@ -132,9 +134,6 @@ class A2IModelBase(tf.keras.Model):
 
     def train_step(self, data):
         (img, aux_info), y = data
-
-        """augmentation during training"""
-        img = self.augmentation(img)
 
         """label (Y) setting"""
         # atel : ones (replace -1 with 1)
