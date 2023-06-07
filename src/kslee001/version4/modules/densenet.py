@@ -120,7 +120,7 @@ def DenseNet(
     num_classes=5, 
     activation='sigmoid',
     input_shape=None,
-    image_channels=1,
+    image_channels=3,
     seed=1005,
     reg=0.
 ):

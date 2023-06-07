@@ -14,13 +14,14 @@ configs.general.precision = 32 # fp32
 configs.general.num_workers = 16
 configs.general.tf_dtype = tf.float16 if configs.general.precision==16 else tf.float32
 configs.general.distributed = True
+configs.general.progress_bar = 1 # 0 : silence , 1 : progressbar , 2 : one line per epoch
 
 """dataset configuration"""
 configs.dataset = EasyDict()
 configs.dataset.data_dir = None # defined at runtime
 configs.dataset.dataset_name = 'CheXpert-v1.0'
 configs.dataset.valid_ratio = 0.1
-configs.dataset.auxiliary_columns = ['Sex', 'Age'] 
+configs.dataset.auxiliary_columns = ['Sex', 'Age']
 configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 configs.dataset.num_classes = len(configs.dataset.target_columns)
 configs.dataset.image_size = (320, 320) # (384, 384), (320, 320)
@@ -60,6 +61,7 @@ configs.model.use_aux_information = False
 # model - densenet
 configs.model.densenet = EasyDict()
 configs.model.densenet.blocks = [6, 12, 48, 32] 
+configs.model.densenet.growth_rate = 32
 # model - convnext
 configs.model.convnext = EasyDict()
 configs.model.convnext.drop_path_rate = 0.1
@@ -69,7 +71,7 @@ configs.model.convnext.projection_dims = [128, 256, 512, 1024]
 # model - classifier
 configs.model.classifier = EasyDict()
 configs.model.classifier.add_expert = False
-configs.model.classifier.filter_sizes = [512, 256, 128]
+configs.model.classifier.expert_filters = [512, 256, 128]
 
 
 

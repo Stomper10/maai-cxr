@@ -20,7 +20,7 @@ configs.dataset = EasyDict()
 configs.dataset.data_dir = None # defined at runtime
 configs.dataset.dataset_name = 'CheXpert-v1.0'
 configs.dataset.valid_ratio = 0.1
-configs.dataset.auxiliary_columns = ['Sex', 'Age'] 
+configs.dataset.auxiliary_columns = ['Sex', 'Age']
 configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 configs.dataset.num_classes = len(configs.dataset.target_columns)
 configs.dataset.image_size = (320, 320) # (384, 384), (320, 320)
@@ -37,7 +37,7 @@ configs.augmentation.rotation_factor = (-0.01, 0.01)  # -3% ~ 3%
 
 """wandb logger"""
 configs.wandb = EasyDict()
-configs.wandb.use_wandb = True
+configs.wandb.use_wandb = False
 configs.wandb.project_name = 'AAI'
 configs.wandb.run_name = None # defined at runtime
 

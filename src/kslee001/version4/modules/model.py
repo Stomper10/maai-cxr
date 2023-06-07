@@ -20,7 +20,7 @@ class A2IModelBase(tf.keras.Model):
 
         self.densenet = DenseNet(
             blocks=blocks,
-            input_shape=(*img_size,3),
+            input_shape=img_size,
             seed=seed,
             reg=reg,
         )

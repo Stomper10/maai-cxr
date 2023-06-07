@@ -102,8 +102,8 @@ def load_datasets(configs):
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train_aux, Y_train))
     train_dataset = train_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
     # apply augmentation for train dataset
-    train_Dataset = train_dataset.map(
-        lambda X, y : (augmentation(configs=configs)(X[0], training=True), X[1], y) )
+    # train_Dataset = train_dataset.map(
+    #     lambda X, y : (augmentation(configs=configs)(X[0], training=True), X[1], y) )
     train_dataset = train_dataset.batch(configs.batch_size, drop_remainder=True)
     train_dataset = train_dataset.prefetch(configs.batch_size)
     train_dataset.steps_per_epoch = len(X_train) // configs.batch_size
@@ -149,7 +149,7 @@ def __OBSOLTE__process_path_train(X, X_aux, label):
 def process_path(X, X_aux, label):
     # Read the image from the path
     image = tf.io.read_file(X)
-    image = tf.image.decode_jpeg(image, channels=3)
+    image = tf.image.decode_jpeg(image, channels=1)
     image = tf.cast(image, tf.float32) / 255.0
     return (image, X_aux), label
 

@@ -32,35 +32,35 @@ class A2IModel(tf.keras.Model):
         self.plef_auc = tf.keras.metrics.AUC()
 
         # loss functions
-        self.criterion_atel = tf.keras.losses.BinaryCrossentropy(
+        self.criterion_atel = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE
+            reduction=tf.keras.losses.Reduction.SUM
         )
         self.criterion_card = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE
+            reduction=tf.keras.losses.Reduction.SUM
         )
-        self.criterion_cons = tf.keras.losses.BinaryCrossentropy(
+        self.criterion_cons = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE
+            reduction=tf.keras.losses.Reduction.SUM
         )
-        self.criterion_edem = tf.keras.losses.BinaryCrossentropy(
+        self.criterion_edem = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE
+            reduction=tf.keras.losses.Reduction.SUM
         )
         self.criterion_plef = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE
+            reduction=tf.keras.losses.Reduction.SUM
         )
 
 
@@ -125,7 +125,7 @@ class A2IModel(tf.keras.Model):
         # architecture 2 : expert (classifier)
         # atel : ones (label '-1' as '1')
         # [0,1] binary classification
-        self.atel_classifier = Classifier(num_classes=1, activation='sigmoid',
+        self.atel_classifier = Classifier(num_classes=2, activation='sigmoid',
         filter_sizes=self.configs.model.classifier.filter_sizes, seed=self.configs.general.seed, reg=self.configs.model.regularization)
         atel_out = self.atel_classifier(img_input)
 
@@ -137,13 +137,13 @@ class A2IModel(tf.keras.Model):
 
         # cons : ignore (label '-1' as '0', but no loss included) 
         # [0,1] binary classification
-        self.cons_classifier = Classifier(num_classes=1, activation='sigmoid',
+        self.cons_classifier = Classifier(num_classes=2, activation='sigmoid',
         filter_sizes=self.configs.model.classifier.filter_sizes, seed=self.configs.general.seed, reg=self.configs.model.regularization)
         cons_out = self.cons_classifier(img_input)
 
         # edem : ones (label '-1' as '1')
         # [0, 1] binary classification 
-        self.edem_classifier = Classifier(num_classes=1, activation='sigmoid',
+        self.edem_classifier = Classifier(num_classes=2, activation='sigmoid',
         filter_sizes=self.configs.model.classifier.filter_sizes, seed=self.configs.general.seed, reg=self.configs.model.regularization)
         edem_out = self.edem_classifier(img_input)
 
@@ -185,34 +185,40 @@ class A2IModel(tf.keras.Model):
         atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
                            atel_gt) # float values needed !
-
+        atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
+        atel_gt = tf.one_hot(atel_gt, depth=2)
+        
         # card : multi (replace -1 with 2)
         card_gt = y[:, 1]
         card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
                            card_gt) 
         card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-        card_gt = card_gt = tf.one_hot(card_gt, depth=3)
+        card_gt = tf.one_hot(card_gt, depth=3)
 
         # cons : ignore
         cons_gt = y[:, 2]
         cons_indices = tf.where(cons_gt != tf.constant(-1.0, dtype=self.configs.general.tf_dtype)) # ignore -1 rows
         cons_indices = tf.reshape(cons_indices, [-1])
         cons_gt = tf.gather(cons_gt, cons_indices)
-
+        cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
+        cons_gt = tf.one_hot(cons_gt, depth=2)
+        
         # edem : ones
         edem_gt = y[:, 3]
         edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
                            edem_gt)
-
+        edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
+        edem_gt = tf.one_hot(edem_gt, depth=2)
+        
         # plef : multi
         plef_gt = y[:, 4]
         plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
                            plef_gt) 
         plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-        plef_gt = plef_gt = tf.one_hot(plef_gt, depth=3)
+        plef_gt = tf.one_hot(plef_gt, depth=3)
 
         return atel_gt, card_gt, cons_gt, edem_gt, plef_gt, cons_indices
 
