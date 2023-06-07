@@ -366,6 +366,6 @@ class A2IModel(tf.keras.Model):
     def initialize(self):
         img_sample = tf.zeros((1, *self.configs.dataset.image_size, self.configs.dataset.image_channels))
         # aux_sample = tf.zeros((1,2))
-        self(img_sample, , training=False)
+        self(img_sample, training=False)
 
 
