@@ -25,6 +25,8 @@ configs.dataset.auxiliary_columns = ['Sex', 'Age']
 configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 configs.dataset.num_classes = len(configs.dataset.target_columns)
 configs.dataset.image_size = (320, 320) # (384, 384), (320, 320)
+configs.dataset.image_size = (512, 512) # (384, 384), (320, 320)
+configs.dataset.image_size = (384, 384) # (384, 384), (320, 320)
 configs.dataset.image_channels = 1
 configs.dataset.cutoff = None # 10000 for test, 'None' for full model training
 

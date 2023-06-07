@@ -73,10 +73,24 @@ def load_datasets(configs):
         # use small part of dataset
         train_data = train_data[:configs.dataset.cutoff] 
 
-    train_data, valid_data = train_test_split(train_data, test_size=configs.dataset.valid_ratio)
-    train_data = train_data.reset_index(drop=True)
-    valid_data = valid_data.reset_index(drop=True)
+    """ train / valid split by patients """
+    if configs.dataset.image_size[0] in [512, 320]:
+        patients = train_data['Path'].str.split(f"{str(configs.dataset.image_size[0])}/", expand=True)[1]
+        patients = patients.str.split('_study', expand=True)[0] # patients array
+    elif configs.dataset.image_size[0] == 384:
+        patients = train_data['Path'].str.split(f"train/", expand=True)[1]
+        patients = patients.str.split("/study", expand=True)[0]
+    train_data['patient'] = patients
 
+    patients = patients.drop_duplicates().reset_index(drop=True)
+    train_patients, valid_patients = train_test_split(patients, test_size=configs.dataset.valid_ratio)
+
+    # valid data must be defined first ! (train_data = train_data ~~)
+    valid_data = train_data[train_data['patient'].isin(valid_patients)].reset_index(drop=True)
+    train_data = train_data[train_data['patient'].isin(train_patients)].reset_index(drop=True)
+    del train_data['patient'], valid_data['patient']
+
+    """scaler """
     # normalize 'Age' using StandardScaler after train-valid-test split
     # note that valid data or test data MUST NOT be fitted 
     scaler = StandardScaler()

@@ -60,6 +60,8 @@ if __name__ == '__main__':
 
     # multi-gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
+    num_devices = strategy.num_replicas_in_sync
+    configs.general.batch_size = configs.general.batch_size*num_devices # global batch size
 
     # mixed precision policy
     policy = mixed_precision.Policy('mixed_float16' if configs.general.precision == 16 else 'float32')
