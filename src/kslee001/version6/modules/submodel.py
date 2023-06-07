@@ -23,8 +23,7 @@ def main():
     model.summary()
     return
 
-
-
+# ====== DenseNet feature extractor ==============================================
 class DenseNet(tf.keras.Model):
     def __init__(self,
             blocks=[6, 12, 48, 32, 16, 8], # DenseNet 201 + additional blocks
@@ -118,10 +117,13 @@ class DenseNet(tf.keras.Model):
 
     def initialize(self):
         self.build(input_shape=(1,*(self.image_size),self.image_channels))
-        
+# ====== DenseNet feature extractor ==============================================
 
+
+
+# ====== Classifiers ======================================================================================
 class ExpertClassifier(tf.keras.Model):
-    def __init__(self, num_classes, activation='sigmoid', filter_sizes=[512,256,128], seed=1005, reg=0.):
+    def __init__(self, num_classes, activation=None, filter_sizes=[512,256,128], seed=1005, reg=0.):
         super().__init__()
         initializer = tf.keras.initializers.HeNormal(seed=seed)
         regularizer = tf.keras.regularizers.l2(reg)
@@ -147,7 +149,7 @@ class ExpertClassifier(tf.keras.Model):
 
 
 class LinearClassifier(tf.keras.Model):
-    def __init__(self, num_classes, activation='sigmoid', filter_sizes=[512,256,128], seed=1005, reg=0.):
+    def __init__(self, num_classes, activation=None, filter_sizes=[512,256,128], seed=1005, reg=0.):
         super().__init__()
         initializer = tf.keras.initializers.HeNormal(seed=seed)
         regularizer = tf.keras.regularizers.l2(reg)
@@ -164,19 +166,13 @@ class LinearClassifier(tf.keras.Model):
 
     def call(self, inputs):
         return self.classifier(inputs)
+# ====== Classifiers ======================================================================================
 
 
 
 
 
-
-
-
-
-
-# =============== Blocks ==========================
-
-
+# =============== Blocks for DenseNet =====================================================================
 class ConvBlock(tf.keras.Model):
     def __init__(self, growth_rate, seed=1005, reg=0.):
         super().__init__()
@@ -243,9 +239,23 @@ class TransitionBlock(tf.keras.Model):
 
     def call(self, inputs):
         return self.pool(self.conv(self.act(self.bn(inputs))))
+# =============== Blocks for DenseNet =====================================================================
 
 
 
+
+
+# =============== Blocks for ConvNeXt =====================================================================
+
+
+# =============== Blocks for ConvNeXt =====================================================================
+
+
+
+
+
+
+# =============== Basic Conv Block =====================================================================
 class ConvBnAct(tf.keras.layers.Layer):
     def __init__(
         self, filters, kernel_size=3, strides=(1,1), padding='same', use_bias=False, seed=1005):
@@ -267,6 +277,7 @@ class ConvBnAct(tf.keras.layers.Layer):
         x = self.conv(x)
         x = self.bn(x, training=training)
         return self.act(x)
+# =============== Basic Conv Block =====================================================================
 
 
 

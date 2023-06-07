@@ -33,29 +33,34 @@ class A2IModel(tf.keras.Model):
 
         # loss functions
         self.criterion_atel = tf.keras.losses.BinaryCrossentropy(
+            # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE,    
+            reduction=tf.keras.losses.Reduction.SUM,    
         )
         self.criterion_card = tf.keras.losses.CategoricalCrossentropy(
+            # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE,    
+            reduction=tf.keras.losses.Reduction.SUM,    
         )
         self.criterion_cons = tf.keras.losses.BinaryCrossentropy(
+            # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE,    
+            reduction=tf.keras.losses.Reduction.SUM,    
         )
         self.criterion_edem = tf.keras.losses.BinaryCrossentropy(
+            # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE,    
+            reduction=tf.keras.losses.Reduction.SUM,    
         )
         self.criterion_plef = tf.keras.losses.CategoricalCrossentropy(
+            # from_logits=True,
             from_logits=False, 
             label_smoothing=self.configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.NONE,    
+            reduction=tf.keras.losses.Reduction.SUM,    
         )
 
 
@@ -101,6 +106,20 @@ class A2IModel(tf.keras.Model):
                 seed=configs.general.seed,
                 reg=configs.model.regularization,
             )
+            
+        elif configs.model.backbone == 'convnext':
+            self.feature_extractor = tf.keras.applications.convnext.ConvNeXtBase(
+                model_name='convnext_base',
+                # include_top=True,
+                # include_preprocessing=True,
+                # weights='imagenet',
+                input_tensor=None,
+                input_shape=(*(configs.dataset.image_size), configs.dataset.image_channels),
+                pooling=None,
+                classes=0,
+                # classifier_activation='softmax'
+            )
+            
         img_input = self.feature_extractor(img_input)
 
         # architecture 2 : expert (classifier)
@@ -198,6 +217,13 @@ class A2IModel(tf.keras.Model):
         return atel_gt, card_gt, cons_gt, edem_gt, plef_gt, cons_indices
 
 
+    # def distributed_train_step(self, dataset_inputs):
+    #     per_replica_losses = strategy.run(self.train_step, args=(dataset_inputs,))
+    #     return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+
+    # def distributed_test_step(self, dataset_inputs):
+    #     return strategy.run(self.test_step, args=(dataset_inputs,))
+
     def forward(self, img, aux_info, processed_y, training=False):
         atel_gt, card_gt, cons_gt, edem_gt, plef_gt, cons_indices = processed_y
 
@@ -209,7 +235,7 @@ class A2IModel(tf.keras.Model):
         atel_loss = self.criterion_atel(atel_gt, atel_pred)
         
         # card : multi
-        card_loss = self.criterion_atel(card_gt, card_pred)
+        card_loss = self.criterion_card(card_gt, card_pred)
         
         # cons : ignore
         cons_pred = tf.gather(cons_pred, cons_indices) # ignore some predictions
@@ -243,7 +269,10 @@ class A2IModel(tf.keras.Model):
 
         # calculate loss & logging
         with tf.GradientTape() as tape:
-            total_loss = self.forward(img, aux_info, processed_y, training=True)
+            if self.configs.general.distributed:
+                total_loss = tf.reduce_sum(self.forward(img, aux_info, processed_y, training=True)) 
+            else:
+                total_loss = self.forward(img, aux_info, processed_y, training=True)
 
         # model weight update
         gradients = tape.gradient(total_loss, self.trainable_variables)
@@ -266,7 +295,10 @@ class A2IModel(tf.keras.Model):
         processed_y = self.label_processing(y)
 
         # calculate loss & logging
-        total_loss = self.forward(img, aux_info, processed_y, training=False)
+        if self.configs.general.distributed:
+            total_loss = tf.reduce_sum(self.forward(img, aux_info, processed_y, training=False)) 
+        else:
+            total_loss = self.forward(img, aux_info, processed_y, training=False)
 
         return {
             "loss":self.loss_tracker.result(),
@@ -276,6 +308,26 @@ class A2IModel(tf.keras.Model):
             "edem_auc":self.edem_auc.result(),
             "plef_auc":self.plef_auc.result(),
         }
+
+    # for test
+    def prediction(self, atel_output, card_output, cons_output, edem_output, plef_output):
+        """
+        Function to process the model's predictions.
+        This function assumes that the predictions are logits over labels,
+        and converts them into final label predictions according to the same scheme as in validation.
+        """
+
+        # Convert binary classification outputs to probabilities and then to discrete labels (0 or 1)
+        atel_pred = tf.cast((atel_output) > 0.5, dtype=self.configs.general.tf_dtype)
+        cons_pred = tf.cast((cons_output) > 0.5, dtype=self.configs.general.tf_dtype)
+        edem_pred = tf.cast((edem_output) > 0.5, dtype=self.configs.general.tf_dtype)
+
+        # Only consider the first logit for 'card' and 'plef', ignore the rest
+        card_pred = tf.cast((card_output[..., :1]) > 0.5, dtype=self.configs.general.tf_dtype)
+        plef_pred = tf.cast((plef_output[..., :1]) > 0.5, dtype=self.configs.general.tf_dtype)
+
+        return atel_pred, card_pred, cons_pred, edem_pred, plef_pred
+
 
     def initialize(self):
         self((tf.zeros((1, *self.configs.dataset.image_size, self.configs.dataset.image_channels)), tf.zeros((1, 2))))

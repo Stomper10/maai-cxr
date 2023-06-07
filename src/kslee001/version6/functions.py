@@ -56,7 +56,7 @@ def load_datasets(configs):
     if configs.dataset.image_size[0] == 384:
         train_data['Path'] = train_data['Path'].str.replace(configs.dataset.dataset_name, configs.dataset.data_dir, regex=False)
         test_data['Path'] = test_data['Path'].str.replace(configs.dataset.dataset_name, configs.dataset.data_dir, regex=False)
-    if configs.dataset.image_size[0] == 512:
+    if (configs.dataset.image_size[0] == 512) | (configs.dataset.image_size[0] == 320):
         train_data['Path'] = train_data['Path'].str.replace("/", "_", regex=False)
         train_data['Path'] = train_data['Path'].str.replace(configs.dataset.dataset_name+'_train_', configs.dataset.data_dir+'/train_512/', regex=False)
 

@@ -24,6 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--backbone', action='store', default='densenet')
     parser.add_argument('-e', '--add_expert', action='store_true')
     parser.add_argument('-t', '--test', action='store_true')
+    parser.add_argument('-s', '--single_gpu', action ='store_true')
     args = parser.parse_args()
     cluster = args.cluster
     if cluster == 'gsds-ab':
@@ -36,6 +37,7 @@ if __name__ == '__main__':
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.project_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    configs.general.distributed = True if args.single_gpu == False else False
     saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
 
     # wandb initialization
@@ -54,8 +56,43 @@ if __name__ == '__main__':
     train_dataset, valid_dataset, test_dataset = functions.load_datasets(configs) 
     
     # settings 
-    with strategy.scope():
-    # if True: # single-gpu training (debug)
+    if args.single_gpu == False:
+        with strategy.scope():
+            model = A2IModel(configs=configs)
+            model.initialize()
+            model.summary()
+            scheduler = CustomOneCycleSchedule(
+                max_lr=configs.optimizer.learning_rate, 
+                epochs=configs.general.epochs,
+                steps_per_epoch=train_dataset.steps_per_epoch,
+                start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
+            )
+            optimizer = tf.keras.optimizers.AdamW(
+                learning_rate=scheduler,
+                weight_decay=configs.optimizer.weight_decay,
+                beta_1=configs.optimizer.beta_1,
+                beta_2=configs.optimizer.beta_2,
+                ema_momentum=configs.optimizer.ema_momentum,
+            )
+            model.compile(optimizer=optimizer) 
+            callbacks = [
+                # model checkpoint
+                tf.keras.callbacks.ModelCheckpoint(
+                    filepath=saved_model_path,
+                    monitor='val_loss', 
+                    save_best_only=False,  # save all models (True : Save only the best model based on the monitored metric)
+                    save_weights_only=True,  # save the entire model (including architecture)
+                    # save_format='tf',
+                    mode='min', 
+                    verbose=0  # do not print messages during saving
+                ),
+                # learning rate logger
+                LearningRateLogger(wandb=configs.wandb.use_wandb),
+            ]
+            # wandb logger
+            if configs.wandb.use_wandb == True:
+                callbacks += [ WandbCallback(save_model=False), WandbMetricsLogger(log_freq='batch') ]
+    else:
         model = A2IModel(configs=configs)
         model.initialize()
         model.summary()
@@ -72,7 +109,6 @@ if __name__ == '__main__':
             beta_2=configs.optimizer.beta_2,
             ema_momentum=configs.optimizer.ema_momentum,
         )
-
         model.compile(optimizer=optimizer) 
         callbacks = [
             # model checkpoint
@@ -80,8 +116,8 @@ if __name__ == '__main__':
                 filepath=saved_model_path,
                 monitor='val_loss', 
                 save_best_only=False,  # save all models (True : Save only the best model based on the monitored metric)
-                save_weights_only=True,  
-                # Save just the weights. do not save the entire model (architecture)
+                # save_weights_only=False,  # save the entire model (including architecture)
+                # save_format='tf',
                 mode='min', 
                 verbose=0  # do not print messages during saving
             ),
@@ -91,6 +127,7 @@ if __name__ == '__main__':
         # wandb logger
         if configs.wandb.use_wandb == True:
             callbacks += [ WandbCallback(save_model=False), WandbMetricsLogger(log_freq='batch') ]
+
 
     # training
     model.fit(

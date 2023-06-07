@@ -13,6 +13,7 @@ configs.general.epochs = 5
 configs.general.precision = 32 # fp32
 configs.general.num_workers = 16
 configs.general.tf_dtype = tf.float16 if configs.general.precision==16 else tf.float32
+configs.general.distributed = True
 
 """dataset configuration"""
 configs.dataset = EasyDict()
@@ -22,7 +23,7 @@ configs.dataset.valid_ratio = 0.1
 configs.dataset.auxiliary_columns = ['Sex', 'Age']
 configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 configs.dataset.num_classes = len(configs.dataset.target_columns)
-configs.dataset.image_size = (512, 512) # (384, 384), (320, 320)
+configs.dataset.image_size = (320, 320) # (384, 384), (320, 320)
 configs.dataset.image_channels = 1
 configs.dataset.cutoff = None # 10000 for test, 'None' for full model training
 
@@ -75,6 +76,7 @@ configs.model.classifier.filter_sizes = [512, 256, 128]
 
 
 MODEL_CONFIGS = {
+    #convnext
     "tiny": {
         "depths": [3, 3, 9, 3],
         "projection_dims": [96, 192, 384, 768],
@@ -100,4 +102,16 @@ MODEL_CONFIGS = {
         "projection_dims": [256, 512, 1024, 2048],
         "default_size": 224,
     },
+}
+
+DENSENET_CONFIGS = {
+    "densenet121":{
+        "blocks":[6, 12, 24, 16]
+    },
+    "densenet169":{
+        "blocks":[6, 12, 32, 32]
+    },
+    "densenet201":{
+        "blocks":[6, 12, 48, 32]
+    }
 }
