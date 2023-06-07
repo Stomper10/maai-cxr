@@ -1,20 +1,19 @@
 import os
 import glob
+import argparse
 import numpy as np
 import cv2
 from tqdm.auto import tqdm as tq
 from joblib import Parallel, delayed
 
-# mode = 'train'
-mode = 'valid'
-image_folder = "/home/n1/gyuseonglee/workspace/datasets/chexpert/CheXpert-v1.0"
-target_folder = f"/home/n1/gyuseonglee/workspace/datasets/chexpert-resized/{mode}_512"
+
 
 def make_dir(directory:str):
     if not os.path.exists(directory):
         os.makedirs(directory) 
 
-def center_crop(img, target_size=512):
+
+def center_crop(img, target_size=320):
     h, w, c = img.shape
     if (h<target_size) | (w<target_size):
         set_size = max(h, w)
@@ -29,10 +28,10 @@ def center_crop(img, target_size=512):
     crop_img = img[mid_y - offset_y:mid_y + offset_y, mid_x - offset_x:mid_x + offset_x]
     return crop_img
 
-def resize(img, target_size=512):
+def resize(img, target_size=320):
     return cv2.resize(img, (target_size,target_size), interpolation=cv2.INTER_LANCZOS4)
 
-def process(pid, copy_from_list, copy_to_list, target_size=512):
+def process(pid, copy_from_list, copy_to_list, target_size=320):
     img = cv2.imread(copy_from_list[pid])
     img = resize(center_crop(img, target_size=target_size), target_size=target_size)
     target_dir = copy_to_list[pid]
@@ -40,6 +39,19 @@ def process(pid, copy_from_list, copy_to_list, target_size=512):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', action='store', default='valid')
+    parser.add_argument('-s', '--size', action='store', default=320)
+    args = parser.parse_args()
+    mode = args.mode
+    size = int(args.size)
+
+    # mode = 'train'
+    # size = 320
+    image_folder = "/home/gyuseonglee/workspace/dataset/chexpert/CheXpert-v1.0"
+    target_folder = f"/home/gyuseonglee/workspace/dataset/chexpert-resized/{mode}_{size}"
+
+    make_dir(target_folder)
     
     start_patient = 1 if mode == 'train' else 64541
     end_patient = 65240+1 if mode == 'train' else 64740+1
@@ -58,5 +70,5 @@ if __name__ == '__main__':
     copy_to_list   = [f"{target_folder}/{patients[pid]}_{studies[pid]}_{filename[pid]}" for pid in range(len(d))]
 
     print("-- process images...")
-    Parallel(n_jobs=-1)(delayed(process)(pid, copy_from_list, copy_to_list, 512)
+    Parallel(n_jobs=-1)(delayed(process)(pid, copy_from_list, copy_to_list, size)
     for pid in tq(range(len(copy_from_list))))    
