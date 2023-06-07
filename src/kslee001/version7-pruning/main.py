@@ -48,7 +48,7 @@ if __name__ == '__main__':
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.project_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
