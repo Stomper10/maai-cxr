@@ -166,7 +166,7 @@ class A2IModel(tf.keras.Model):
                      
         elif self.configs.model.backbone == 'convnext':
             for idx, layer_name in enumerate(self.feature_extractor):
-                if ('convnext_block' in layer_name) & ('_conv' in layer_name):
+                if ('convnext_block' in layer_name) & ('_depthwise_conv' in layer_name):
                     feature_for_skip = tf.identity(feature)
                 elif ('convnext_block' in layer_name) & ('stochastic_depth' in layer_name):
                     feature = feature+feature_for_skip
