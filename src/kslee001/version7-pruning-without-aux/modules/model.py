@@ -4,7 +4,7 @@ import tensorflow.keras.layers as layers
 from tensorflow.keras.models import Model
 
 # private module
-from .pruning_modules import Augmentation, DenseNet, Classifier
+from .pruning_modules import Augmentation, DenseNet, ConvNeXt, Classifier
 
 
 class A2IModel(tf.keras.Model):
@@ -53,7 +53,18 @@ class A2IModel(tf.keras.Model):
                 reg=configs.model.regularization,
             )
         elif configs.model.backbone == 'convnext':
-            raise NotImplementedError
+            self.feature_extractor, feature_extractor_output_shape = ConvNeXt(
+                model=self,
+                input_shape=augmentation_output_shape,
+                depths=configs.model.convnext.depth,
+                projection_dims=configs.model.convnext.projection_dims,
+                drop_path_rate=configs.model.convnext.drop_path_rate,
+                layer_scale_init_value=configs.model.convnext.layer_scale_init_value,
+                num_classes=0, 
+                activation=None,
+                seed=configs.general.seed,
+                reg=configs.model.regularization,  
+            )
         else:
             raise NotImplementedError
 
@@ -134,22 +145,36 @@ class A2IModel(tf.keras.Model):
 
 
     def extract_feature(self, x, training=False):
-        """image feature extraction"""
+        """image augmentation """
         for idx, layer_name in enumerate(self.augmentation):
             if idx == 0:
                 feature = getattr(self, layer_name)(x, training=training)
             else:
                 feature = getattr(self, layer_name)(feature, training=training)      
-
-        for idx, layer_name in enumerate(self.feature_extractor):
-            if ('densenet_denseblock' in layer_name) & ('bn1' in layer_name):
-                feature_for_skip = feature
-            elif ('densenet_denseblock' in layer_name) & ('concatenate' in layer_name):
-                feature = getattr(self, layer_name)([feature, feature_for_skip], training=training) # concatenate
-                feature_for_skip = None
-            else:
-                feature = getattr(self, layer_name)(feature, training=training)      
-
+                
+    
+        """image feature extraction"""
+        if self.configs.model.backbone == 'densenet':
+            for idx, layer_name in enumerate(self.feature_extractor):
+                if ('densenet_denseblock' in layer_name) & ('bn1' in layer_name):
+                    feature_for_skip = tf.identity(feature)
+                elif ('densenet_denseblock' in layer_name) & ('concatenate' in layer_name):
+                    feature = getattr(self, layer_name)([feature, feature_for_skip], training=training) # concatenate
+                    feature_for_skip = None
+                else:
+                    feature = getattr(self, layer_name)(feature, training=training)     
+                     
+        elif self.configs.model.backbone == 'convnext':
+            for idx, layer_name in enumerate(self.feature_extractor):
+                if ('convnext_block' in layer_name) & ('_depthwise_conv' in layer_name):
+                    feature_for_skip = tf.identity(feature)
+                elif ('convnext_block' in layer_name) & ('stochastic_depth' in layer_name):
+                    feature = feature+feature_for_skip
+                    feature = getattr(self, layer_name)(feature, training=training) # concatenate
+                    feature_for_skip = None
+                else:
+                    feature = getattr(self, layer_name)(feature, training=training)     
+                    
         return feature
 
 
