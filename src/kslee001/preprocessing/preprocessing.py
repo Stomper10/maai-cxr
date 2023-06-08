@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
     # mode = 'train'
     # size = 320
-    image_folder = "/home/gyuseonglee/workspace/dataset/chexpert/CheXpert-v1.0"
-    target_folder = f"/home/gyuseonglee/workspace/dataset/chexpert-resized/{mode}_{size}"
+    image_folder = "/home/n1/gyuseonglee/workspace/datasets/chexpert/CheXpert-v1.0"
+    target_folder = f"/home/n1/gyuseonglee/workspace/datasets/chexpert-resized/{mode}_{size}"
 
     make_dir(target_folder)
     

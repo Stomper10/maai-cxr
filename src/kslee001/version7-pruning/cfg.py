@@ -3,12 +3,52 @@ from functions import make_dir
 import numpy as np
 import tensorflow as tf
 
+CONVNEXT_CONFIGS = {
+    #convnext
+    "tiny": {
+        "depths": [3, 3, 9, 3],
+        "projection_dims": [96, 192, 384, 768],
+        "default_size": 224,
+    },
+    "small": {
+        "depths": [3, 3, 27, 3],
+        "projection_dims": [96, 192, 384, 768],
+        "default_size": 224,
+    },
+    "base": {
+        "depths": [3, 3, 27, 3],
+        "projection_dims": [128, 256, 512, 1024],
+        "default_size": 224,
+    },
+    "large": {
+        "depths": [3, 3, 27, 3],
+        "projection_dims": [192, 384, 768, 1536],
+        "default_size": 224,
+    },
+    "xlarge": {
+        "depths": [3, 3, 27, 3],
+        "projection_dims": [256, 512, 1024, 2048],
+        "default_size": 224,
+    },
+}
+
+DENSENET_CONFIGS = {
+    "densenet121":{
+        "blocks":[6, 12, 24, 16]
+    },
+    "densenet169":{
+        "blocks":[6, 12, 32, 32]
+    },
+    "densenet201":{
+        "blocks":[6, 12, 48, 32]
+    }
+}
 
 configs = EasyDict()
 """genearl configuration"""
 configs.general = EasyDict()
 configs.general.seed = 1005
-configs.general.batch_size = 16
+configs.general.batch_size = 8
 configs.general.epochs = 5
 configs.general.precision = 32 # fp32
 configs.general.num_workers = 16
@@ -25,6 +65,8 @@ configs.dataset.auxiliary_columns = ['Sex', 'Age']
 configs.dataset.target_columns = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 configs.dataset.num_classes = len(configs.dataset.target_columns)
 configs.dataset.image_size = (320, 320) # (384, 384), (320, 320)
+# configs.dataset.image_size = (512, 512) # (384, 384), (320, 320)
+# configs.dataset.image_size = (384, 384) # (384, 384), (320, 320)
 configs.dataset.image_channels = 1
 configs.dataset.cutoff = None # 10000 for test, 'None' for full model training
 
@@ -66,8 +108,9 @@ configs.model.densenet.growth_rate = 32
 configs.model.convnext = EasyDict()
 configs.model.convnext.drop_path_rate = 0.1
 configs.model.convnext.layer_scale_init_value = 1e-6
-configs.model.convnext.depth = [3, 3, 27, 3]
-configs.model.convnext.projection_dims = [128, 256, 512, 1024]
+configs.model.convnext.size = 'large'
+configs.model.convnext.depth = CONVNEXT_CONFIGS[configs.model.convnext.size]['depths']
+configs.model.convnext.projection_dims = CONVNEXT_CONFIGS[configs.model.convnext.size]['projection_dims']
 # model - classifier
 configs.model.classifier = EasyDict()
 configs.model.classifier.add_expert = False
@@ -77,43 +120,3 @@ configs.model.classifier.expert_filters = [512, 256, 128]
 
 
 
-MODEL_CONFIGS = {
-    #convnext
-    "tiny": {
-        "depths": [3, 3, 9, 3],
-        "projection_dims": [96, 192, 384, 768],
-        "default_size": 224,
-    },
-    "small": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [96, 192, 384, 768],
-        "default_size": 224,
-    },
-    "base": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [128, 256, 512, 1024],
-        "default_size": 224,
-    },
-    "large": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [192, 384, 768, 1536],
-        "default_size": 224,
-    },
-    "xlarge": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [256, 512, 1024, 2048],
-        "default_size": 224,
-    },
-}
-
-DENSENET_CONFIGS = {
-    "densenet121":{
-        "blocks":[6, 12, 24, 16]
-    },
-    "densenet169":{
-        "blocks":[6, 12, 32, 32]
-    },
-    "densenet201":{
-        "blocks":[6, 12, 48, 32]
-    }
-}
