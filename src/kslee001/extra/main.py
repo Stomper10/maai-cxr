@@ -76,12 +76,12 @@ if __name__ == '__main__':
     if args.single_gpu == False:
         with strategy.scope():
             model, callbacks = functions.set_model_callbacks(
-                model_class=A2IModel_ensemble if configs.add_ensemble==True else A2IModel, 
+                model_class=A2IModel_ensemble if configs.model.add_ensemble==True else A2IModel, 
                 configs=configs
             )
     else:
         model, callbacks = functions.set_model_callbacks(
-            model_class=A2IModel_ensemble if configs.add_ensemble==True else A2IModel, 
+            model_class=A2IModel_ensemble if configs.model.add_ensemble==True else A2IModel, 
             configs=configs
         )
 
