@@ -62,8 +62,8 @@ class A2IModel(tf.keras.Model):
                 'projection_dims':configs.model.convnext.projection_dims,
                 'drop_path_rate':configs.model.convnext.drop_path_rate,
                 'layer_scale_init_value':configs.model.convnext.layer_scale_init_value,
-                'num_classes':1, 
-                'activation':'sigmoid',
+                # 'num_classes':2, 
+                'activation':'softmax',
                 'seed':configs.general.seed,
                 'reg':configs.model.regularization,  
             }
@@ -75,27 +75,27 @@ class A2IModel(tf.keras.Model):
         # atel : ones (label '-1' as '1')
         # [0,1] binary classification
         args['name_prefix'] = 'atel'
-        self.atel_classifier, _ = fe(**args)
+        self.atel_classifier, _ = fe(**args, num_classes=2)
 
         # card : multi (label '-1' as '2') 
         # [0,1,2] multiclass classification 
         args['name_prefix'] = 'card'
-        self.card_classifier, _ = fe(**args)
+        self.card_classifier, _ = fe(**args, num_classes=3)
 
         # cons : ignore (label '-1' as '0', but no loss included) 
         # [0,1] binary classification
         args['name_prefix'] = 'cons'
-        self.cons_classifier, _ = fe(**args)
+        self.cons_classifier, _ = fe(**args, num_classes=2)
 
         # edem : ones (label '-1' as '1')
         # [0, 1] binary classification 
         args['name_prefix'] = 'edem'
-        self.edem_classifier, _ = fe(**args)
+        self.edem_classifier, _ = fe(**args, num_classes=2)
 
         # plef : multi (label '-1' as '2')
         # [0,1,2] multiclass classification 
         args['name_prefix'] = 'plef'
-        self.plef_classifier, _ = fe(**args)
+        self.plef_classifier, _ = fe(**args, num_classes=3)
         
         if self.configs.model.use_aux_information:
             self.auxiliary_layer = None

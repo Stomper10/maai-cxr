@@ -143,29 +143,44 @@ def load_datasets(configs):
 
 
 
-def set_model_callbacks(model_class, configs):
+def set_model_callbacks(model_class, weights_path=None, configs=None, training=True):
     model = model_class(configs=configs)
     model.initialize()
-    scheduler = CustomOneCycleSchedule(
-        max_lr=configs.optimizer.learning_rate, 
-        epochs=configs.general.epochs,
-        steps_per_epoch=configs.general.steps_per_epoch,
-        start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
-    )
-    optimizer = tf.keras.optimizers.AdamW(
-        learning_rate=scheduler,
-        weight_decay=configs.optimizer.weight_decay,
-        beta_1=configs.optimizer.beta_1,
-        beta_2=configs.optimizer.beta_2,
-        ema_momentum=configs.optimizer.ema_momentum,
-    )    
-    criterion = tf.keras.losses.CategoricalCrossentropy(
-        # from_logits=True,
-        from_logits=False, 
-        label_smoothing=configs.model.label_smoothing,
-        reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
-    )
-    model.compile(optimizer=optimizer, loss=criterion) 
+
+    if weights_path is not None:
+        model.load_weights(weights_path)
+    if training == True:
+        scheduler = CustomOneCycleSchedule(
+            max_lr=configs.optimizer.learning_rate, 
+            epochs=configs.general.epochs,
+            steps_per_epoch=configs.general.steps_per_epoch,
+            start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
+        )
+        optimizer = tf.keras.optimizers.AdamW(
+            learning_rate=scheduler,
+            weight_decay=configs.optimizer.weight_decay,
+            beta_1=configs.optimizer.beta_1,
+            beta_2=configs.optimizer.beta_2,
+            ema_momentum=configs.optimizer.ema_momentum,
+        )    
+        criterion = tf.keras.losses.CategoricalCrossentropy(
+            # from_logits=True,
+            from_logits=False, 
+            label_smoothing=configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
+        )
+        model.compile(optimizer=optimizer, loss=criterion) 
+    else:
+        if weights_path is not None:
+            model.load_weights(weights_path)
+        criterion = tf.keras.losses.CategoricalCrossentropy(
+            # from_logits=True,
+            from_logits=False, 
+            label_smoothing=configs.model.label_smoothing,
+            reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
+        )
+        model.compile(loss=criterion)
+
     callbacks = [
         # model checkpoint
         tf.keras.callbacks.ModelCheckpoint(

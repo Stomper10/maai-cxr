@@ -48,7 +48,8 @@ if __name__ == '__main__':
     configs.model.add_ensemble = bool(args.add_ensemble)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    run_name = 'a2i' if configs.model.add_ensemble==False else 'a2i-ensemble'
+    configs.wandb.run_name = f'{run_name}-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)

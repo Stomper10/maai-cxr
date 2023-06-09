@@ -5,6 +5,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
+import glob
 import argparse
 import pandas as pd
 import numpy as np
@@ -21,22 +22,17 @@ from cfg import configs
 import functions
 
 
+configs.model.backbone = 'densenet'
+# configs.model.backbone = 'convnext'
+
 if __name__ == '__main__':
+    weights = glob.glob(f"./{configs.model.backbone}*.h5")
     # argument parsing : [ cluster, backbone type (densenet, convnext), head ]
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cluster', action='store', default='akmu')
-    parser.add_argument('-b', '--backbone', action='store', default='densenet')
-    parser.add_argument('-a', '--add_expert', action='store_true')
-    parser.add_argument('-e', '--epochs', action ='store', type=int, default=5)
-    parser.add_argument('-p', '--progress_bar', action ='store_false')
-
-    # for debugging
-    parser.add_argument('-t', '--test', action='store_true')
-    parser.add_argument('-s', '--single_gpu', action ='store_true')
-    parser.add_argument('-w', '--wandb_off', action='store_false')
+    # parser.add_argument('-b', '--backbone', action='store', default='densenet')
 
     args = parser.parse_args()
-    configs.general.progress_bar = 1 if args.progress_bar==True else 2 # one line per epoch
     cluster = args.cluster
     if cluster == 'gsds-ab':
         configs.dataset.data_dir = '/home/n1/gyuseonglee/workspace/datasets/chexpert-resized'
@@ -44,19 +40,15 @@ if __name__ == '__main__':
         configs.dataset.data_dir = '/home/gyuseonglee/workspace/dataset/chexpert-resized'
     if cluster == 'akmu':
         configs.dataset.data_dir = '/data/s1/gyuseong/chexpert-resized'
-    configs.model.backbone = args.backbone
-    configs.model.classifier.add_expert = bool(args.add_expert)
-    configs.dataset.cutoff = 1000 if args.test == True else None
-    configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
-    configs.general.distributed = True if args.single_gpu == False else False
-    configs.general.epochs = int(args.epochs)
-    saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
-
-    # wandb initialization
-    if configs.wandb.use_wandb == True :
-        wandb.login()
-        run = wandb.init(project=configs.wandb.project_name, name=configs.wandb.run_name, config=configs)
+    # configs.model.backbone = args.backbone
+    configs.model.classifier.add_expert = False
+    configs.dataset.cutoff = 10
+    configs.wandb.use_wandb = False
+    configs.wandb.run_name = None
+    configs.general.distributed = False
+    configs.general.epochs = 1
+    configs.general.batch_size = 16
+    configs.saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
 
     # multi-gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
@@ -70,60 +62,32 @@ if __name__ == '__main__':
     # load datasets
     train_dataset, valid_dataset, test_dataset = functions.load_datasets(configs) 
 
-    model = A2IModel(configs=configs)
-    model.initialize()
-    scheduler = CustomOneCycleSchedule(
-        max_lr=configs.optimizer.learning_rate, 
-        epochs=configs.general.epochs,
-        steps_per_epoch=train_dataset.steps_per_epoch,
-        start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
-    )
-    optimizer = tf.keras.optimizers.AdamW(
-        learning_rate=scheduler,
-        weight_decay=configs.optimizer.weight_decay,
-        beta_1=configs.optimizer.beta_1,
-        beta_2=configs.optimizer.beta_2,
-        ema_momentum=configs.optimizer.ema_momentum,
-    )
-    criterion = tf.keras.losses.CategoricalCrossentropy(
-        # from_logits=True,
-        from_logits=False, 
-        label_smoothing=configs.model.label_smoothing,
-        # reduction=tf.keras.losses.Reduction.SUM
-    )
-    model.compile(optimizer=optimizer, loss=criterion) 
-    callbacks = [
-        # model checkpoint
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=saved_model_path,
-            monitor='val_loss', 
-            save_best_only=False,  # save all models (True : Save only the best model based on the monitored metric)
-            save_weights_only=True,  # save the entire model (including architecture)
-            # save_format='tf',
-            mode='min', 
-            verbose=0  # do not print messages during saving
-        ),
-        # learning rate logger
-        LearningRateLogger(wandb=configs.wandb.use_wandb),
-    ]
-    # wandb logger
-    if configs.wandb.use_wandb == True:
-        callbacks += [ WandbCallback(save_model=False), WandbMetricsLogger(log_freq='batch') ]
 
 
-    # training
-    total_parameters = model.count_params()
-    # model.save_weights("sample_model.h5")
-    # file_size = os.path.getsize("sample_model.h5") / (1024 * 1024)
-    print("[INFERENCE INFO]")
-    print(f"-- Model Feature extractor : {configs.model.backbone}")
-    print(f"-- Total parameters        : {format(total_parameters, ',')}")
-    # print(f"-- Expected weight size    : {np.round(file_size, 2)} MB")
+    best_weights = None
+    best_auc = -1
+    for path in weights:
+        model, _ = functions.set_model_callbacks(
+            model_class=A2IModel,
+            weights_path=path,
+            configs=configs,
+            training=False,
+        )
 
-    losses = model.evaluate(test_dataset)
-    
-    prediction = model.predict(test_dataset)
+        losses = model.evaluate(test_dataset)
+        targets = ['atel', 'card', 'cons', 'edem', 'plef']
+        average_auc = np.round(np.mean(losses[2:]), 4)
+
+        # evaluation
+        print("-- result of : ", path)
+        print( str([f"val_loss : {np.round(losses[0], 4)}"] + [ f"{targets[idx]} : {np.round(losses[2:][idx], 4)}"  for idx in range(5) ]))
+        print("-- average AUC : ", average_auc)
+
+        if average_auc > best_auc:
+            best_auc = average_auc
+            best_weights = path
 
 
-    # evaluation
-    print(losses)
+    print("\n[RESULT]")
+    print(f"best model : {best_weights}")
+    print(f"best auc   : {best_auc}")

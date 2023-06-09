@@ -45,6 +45,7 @@ DENSENET_CONFIGS = {
 }
 
 configs = EasyDict()
+configs.saved_model_path = None
 """genearl configuration"""
 configs.general = EasyDict()
 configs.general.seed = 1005
@@ -56,7 +57,6 @@ configs.general.num_workers = 16
 configs.general.tf_dtype = tf.float16 if configs.general.precision==16 else tf.float32
 configs.general.distributed = True
 configs.general.progress_bar = 1 # 0 : silence , 1 : progressbar , 2 : one line per epoch
-
 """dataset configuration"""
 configs.dataset = EasyDict()
 configs.dataset.data_dir = None # defined at runtime
