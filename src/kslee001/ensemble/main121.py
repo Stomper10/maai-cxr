@@ -49,11 +49,11 @@ if __name__ == '__main__':
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'final-{configs.general.seed}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'final-{configs.general.seed}-{configs.model.backbone}121-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
-    configs.saved_model_path = "./" + f"{configs.model.backbone}_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
+    configs.saved_model_path = "./" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
 
     print(f"[TRAINING] current seed : {configs.general.seed}")
 
