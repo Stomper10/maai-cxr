@@ -11,7 +11,7 @@ import numpy as np
 from tqdm.auto import tqdm as tq
 import tensorflow as tf
 from tensorflow.keras import mixed_precision
-import tensorflow_model_optimization as tfmot
+import tensorflow_model_optimization as tfmot # pip install 필요!
 import wandb
 
 # private
@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     # pruning
     with strategy.scope():
-        model.load_weights('final_densenet_320.h5') 
+        model.load_weights('final_densenet_320.h5') # base model weight 불러오기
         layers = [layer for layer in model.layers]
         model = tf.keras.Sequential(layers)
         
@@ -97,12 +97,13 @@ if __name__ == '__main__':
         # model.summary()
        
         prune_low_magnitude = tfmot.sparsity.keras.prune_low_magnitude
+        target_sparsity = 0.80 # !!!!!!!!!!!!!!!!!! 0.80 /0.90 / 0.95 세팅 바꿔서 돌리기 configuration 반영 플리즈!
 
         end_step = np.ceil(len(train_dataset) / configs.general.batch_size).astype(np.int32) * configs.general.epochs
 
         pruning_params = {
                 'pruning_schedule': tfmot.sparsity.keras.PolynomialDecay(initial_sparsity=0.50,
-                                                                        final_sparsity=0.80,
+                                                                        final_sparsity=target_sparsity,
                                                                         begin_step=0,
                                                                         end_step=end_step)
         }
@@ -136,6 +137,10 @@ if __name__ == '__main__':
             verbose=configs.general.progress_bar, 
             shuffle=True,
         )
+
+        model.summary() 
+
+        model.save("pruned_{target_sparsity}.h5", save_format='h5')
     
 
 
