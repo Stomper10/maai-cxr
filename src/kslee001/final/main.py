@@ -45,7 +45,7 @@ if __name__ == '__main__':
     if cluster == 'akmu':
         configs.dataset.data_dir = '/data/s1/gyuseong/chexpert-resized'
     configs.model.backbone = args.backbone
-    configs.general.seed = args.seed
+    configs.general.seed = int(args.seed)
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
