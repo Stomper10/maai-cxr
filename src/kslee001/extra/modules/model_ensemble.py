@@ -48,7 +48,7 @@ class A2IModel(tf.keras.Model):
                 'input_shape':augmentation_output_shape,
                 'blocks':configs.model.densenet.blocks, # DenseNet 201 + additional blocks
                 'growth_rate':configs.model.densenet.growth_rate,
-                'num_classes':1, 
+                # 'num_classes':1, 
                 'activation':None,
                 'seed':configs.general.seed,
                 'reg':configs.model.regularization,
@@ -204,47 +204,47 @@ class A2IModel(tf.keras.Model):
         atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
                            atel_gt) # float values needed !
-        # atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
-        # atel_gt = tf.one_hot(atel_gt, depth=2)
+        atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
+        atel_gt = tf.one_hot(atel_gt, depth=2)
         
-        # card : multi (replace -1 with 2) (0.854) -> U-zeros (0.840) adopted instead
+        # card : multi (replace -1 with 2) (0.854)
         card_gt = y[:, 1]
         card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                           tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
                            card_gt) 
-        # card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-        # card_gt = tf.one_hot(card_gt, depth=2)
+        card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
+        card_gt = tf.one_hot(card_gt, depth=3)
 
         # cons : ignore (0.937) -> U-zeros (0.932) adopted instead 
         cons_gt = y[:, 2]
-        cons_gt = tf.where(cons_gt != tf.constant(-1.0, dtype=self.configs.general.tf_dtype),
-                                tf.constant(0.0, dtype=self.configs.general.tf_dtype),
-                                cons_gt)
-        # cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
-        # cons_gt = tf.one_hot(cons_gt, depth=2)
-        
+        cons_gt = tf.where(cons_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
+                           cons_gt) # float values needed !
+        cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
+        cons_gt = tf.one_hot(cons_gt, depth=2)
+
         # edem : ones (0.941)
         edem_gt = y[:, 3]
         edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
                            edem_gt)
-        # edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
-        # edem_gt = tf.one_hot(edem_gt, depth=2)
+        edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
+        edem_gt = tf.one_hot(edem_gt, depth=2)
         
-        # plef : multi (0.936) -> U-ones (0.934) adopted instead
+        # plef : multi (0.936)
         plef_gt = y[:, 4]
         plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                           tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
                            plef_gt) 
-        # plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-        # plef_gt = tf.one_hot(plef_gt, depth=2)
+        plef_gt = tf.cast(plef_gt, dtype=tf.int32)
+        plef_gt = tf.one_hot(plef_gt, depth=3)
 
         output = (
-            atel_gt,  
-            card_gt,  
-            cons_gt,  
-            edem_gt,  
-            plef_gt
+            (atel_gt, None), 
+            (card_gt, None), 
+            (cons_gt, None),  # no 'ignore' indices 
+            (edem_gt, None), 
+            (plef_gt, None)
         )
         return output
 
@@ -259,33 +259,34 @@ class A2IModel(tf.keras.Model):
 
         """loss calculation (each label)"""
         # atel : ones (replace -1 with 1)
-        atel_loss = self.compiled_loss(processed_y[0], outputs[0])
+        atel_loss = self.compiled_loss(processed_y[0][0], outputs[0])
         
         # card : multi
-        card_loss = self.compiled_loss(processed_y[1], outputs[1])
+        card_loss = self.compiled_loss(processed_y[1][0], outputs[1])
         
         # cons : ignore
         # outputs[2] = tf.gather(outputs[2], processed_y[2][1]) # ignore some predictions
-        cons_loss = self.compiled_loss(processed_y[2], outputs[2])
+        cons_loss = self.compiled_loss(processed_y[2][0], outputs[2])
         
         # edem : ones
-        edem_loss = self.compiled_loss(processed_y[3], outputs[3])
+        edem_loss = self.compiled_loss(processed_y[3][0], outputs[3])
 
         # plef : multi
-        plef_loss = self.compiled_loss(processed_y[4], outputs[4])
+        plef_loss = self.compiled_loss(processed_y[4][0], outputs[4])
 
         # TODO: Decide whether to use weighted sum or simple averaging for combining losses
         total_loss = atel_loss + card_loss + cons_loss + edem_loss + plef_loss 
 
         # logging
         self.loss_tracker.update_state(total_loss)
-        self.atel_auc.update_state(processed_y[0], outputs[0])
-        self.card_auc.update_state(processed_y[1], outputs[1])
-        self.cons_auc.update_state(processed_y[2], outputs[2])
-        self.edem_auc.update_state(processed_y[3], outputs[3])
-        self.plef_auc.update_state(processed_y[4], outputs[4])
+        self.atel_auc.update_state(processed_y[0][0], outputs[0])
+        self.card_auc.update_state(processed_y[1][0], outputs[1])
+        self.cons_auc.update_state(processed_y[2][0], outputs[2])
+        self.edem_auc.update_state(processed_y[3][0], outputs[3])
+        self.plef_auc.update_state(processed_y[4][0], outputs[4])
 
         return total_loss
+
 
 
     def train_step(self, data):

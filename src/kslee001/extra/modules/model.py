@@ -210,7 +210,7 @@ class A2IModel(tf.keras.Model):
 
     def label_processing(self, y):
         """label (Y) setting"""
-        # atel : ones (replace -1 with 1)
+        # atel : ones (replace -1 with 1) (0.858)
         atel_gt = y[:, 0]
         atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
@@ -218,7 +218,7 @@ class A2IModel(tf.keras.Model):
         atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
         atel_gt = tf.one_hot(atel_gt, depth=2)
         
-        # card : multi (replace -1 with 2)
+        # card : multi (replace -1 with 2) (0.854)
         card_gt = y[:, 1]
         card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
@@ -226,15 +226,15 @@ class A2IModel(tf.keras.Model):
         card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
         card_gt = tf.one_hot(card_gt, depth=3)
 
-        # cons : ignore
+        # cons : ignore (0.937) -> U-zeros (0.932) adopted instead 
         cons_gt = y[:, 2]
-        cons_indices = tf.where(cons_gt != tf.constant(-1.0, dtype=self.configs.general.tf_dtype)) # ignore -1 rows
-        cons_indices = tf.reshape(cons_indices, [-1])
-        cons_gt = tf.gather(cons_gt, cons_indices)
+        cons_gt = tf.where(cons_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
+                           cons_gt) # float values needed !
         cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
         cons_gt = tf.one_hot(cons_gt, depth=2)
-        
-        # edem : ones
+
+        # edem : ones (0.941)
         edem_gt = y[:, 3]
         edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
@@ -242,7 +242,7 @@ class A2IModel(tf.keras.Model):
         edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
         edem_gt = tf.one_hot(edem_gt, depth=2)
         
-        # plef : multi
+        # plef : multi (0.936)
         plef_gt = y[:, 4]
         plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
@@ -253,7 +253,7 @@ class A2IModel(tf.keras.Model):
         output = (
             (atel_gt, None), 
             (card_gt, None), 
-            (cons_gt, cons_indices), 
+            (cons_gt, None),  # no 'ignore' indices 
             (edem_gt, None), 
             (plef_gt, None)
         )
@@ -276,7 +276,7 @@ class A2IModel(tf.keras.Model):
         card_loss = self.compiled_loss(processed_y[1][0], outputs[1])
         
         # cons : ignore
-        outputs[2] = tf.gather(outputs[2], processed_y[2][1]) # ignore some predictions
+        # outputs[2] = tf.gather(outputs[2], processed_y[2][1]) # ignore some predictions
         cons_loss = self.compiled_loss(processed_y[2][0], outputs[2])
         
         # edem : ones
