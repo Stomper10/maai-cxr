@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', action ='store', type=int, default=5)
     parser.add_argument('-b', '--batch', action='store', type=int, default=16)
     parser.add_argument('-p', '--progress_bar', action ='store_false')
+    parser.add_argument('-s', '--seed', action='store', default=1005)
 
     # for debugging
     parser.add_argument('-t', '--test', action='store_true')
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'final-{seed}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
