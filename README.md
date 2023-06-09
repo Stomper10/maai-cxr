@@ -1,13 +1,19 @@
 # maai-cxr
 2023 Spring MAAI project
 
-# No base
-1. Efficient (v1) (full, quant) 384x384x3
-1. ConvNeXT (v2) (full, quant) 384x384x3
+# Baseline Model
+1. DenseNet201 - AUC 0.85
+2. ConvNeXT - AUC 0.90
 
-# Little base
-1. DenseNet-add (v3) (full, quant, pruning/quant) 512x512x3
-1. DenseNet-naive (v4) (full, quant) 512x512x3
+# Model Compresison
+1. PTQ
+2. Pruning
 
-# Full base
-1. ConvNeXT (v5) (full, quant, pruning/quant) 320x320x1
+# Inference
+1. Baseline model - server
+2. Quantized model - server
+3. Quantized model - coral
+
+# Interpretability
+1. SHAP/Lime for baseline model
+2. SHAP/Lime for quantized model
