@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     # training
     total_parameters = model.count_params()
-    model.save_weights("sample_model.h5")
+    model.save_weights(f"sample_model_{configs.general.seed}.h5")
     file_size = os.path.getsize("sample_model.h5") / (1024 * 1024)
     print("[TRAINING INFO]")
     print(f"-- Model Feature extractor : {configs.model.backbone}")
