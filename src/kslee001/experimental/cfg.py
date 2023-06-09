@@ -48,7 +48,7 @@ configs = EasyDict()
 """genearl configuration"""
 configs.general = EasyDict()
 configs.general.seed = 1005
-configs.general.batch_size = 16
+configs.general.batch_size = 2
 configs.general.epochs = 30 
 configs.general.steps_per_epoch = None
 configs.general.precision = 32 # fp32
@@ -98,6 +98,7 @@ configs.optimizer.focal_loss = None
 """model configuration"""
 # model - general
 configs.model = EasyDict()
+configs.model.add_ensemble = None
 configs.model.backbone = 'densenet'
 configs.model.regularization = 5e-5
 configs.model.label_smoothing = 0.1
@@ -110,7 +111,7 @@ configs.model.densenet.growth_rate = 32
 configs.model.convnext = EasyDict()
 configs.model.convnext.drop_path_rate = 0.1
 configs.model.convnext.layer_scale_init_value = 1e-6
-configs.model.convnext.size = 'large'
+configs.model.convnext.size = 'xlarge'
 configs.model.convnext.depth = CONVNEXT_CONFIGS[configs.model.convnext.size]['depths']
 configs.model.convnext.projection_dims = CONVNEXT_CONFIGS[configs.model.convnext.size]['projection_dims']
 # model - classifier
