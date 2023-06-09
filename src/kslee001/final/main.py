@@ -53,7 +53,7 @@ if __name__ == '__main__':
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
-    configs.saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
+    configs.saved_model_path = "./" + f"{configs.model.backbone}_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
 
     print(f"[TRAINING] current seed : {configs.general.seed}")
 
