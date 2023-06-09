@@ -12,6 +12,6 @@ source /home/n1/${USER}/.bashrc
 source /home/n1/${USER}/anaconda3/bin/activate
 conda activate tf
 
-srun python ./main.py $@
+srun python ./main.py --cluster gsds-ab --backbone densenet --epochs 30 $@
 
 

@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     # for debugging
     parser.add_argument('-t', '--test', action='store_true')
-    parser.add_argument('-s', '--single_gpu', action ='store_true')
+    parser.add_argument('-g', '--single_gpu', action ='store_true')
     parser.add_argument('-w', '--wandb_off', action='store_false')
 
     args = parser.parse_args()
@@ -45,14 +45,17 @@ if __name__ == '__main__':
     if cluster == 'akmu':
         configs.dataset.data_dir = '/data/s1/gyuseong/chexpert-resized'
     configs.model.backbone = args.backbone
+    configs.general.seed = args.seed
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'final-{seed}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'final-{configs.general.seed}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
     configs.saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
+
+    print(f"[TRAINING] current seed : {configs.general.seed}")
 
     # wandb initialization
     if configs.wandb.use_wandb == True :
