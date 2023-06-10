@@ -94,8 +94,8 @@ if __name__ == '__main__':
 
     # training
     total_parameters = model.count_params()
-    model.save_weights(f"sample_model_{configs.general.seed}.h5")
-    file_size = os.path.getsize(f"sample_model_{configs.general.seed}.h5") / (1024 * 1024)
+    model.save_weights(f"sample_model_{configs.general.label}_{configs.general.seed}.h5")
+    file_size = os.path.getsize(f"sample_model_{configs.general.label}_{configs.general.seed}.h5") / (1024 * 1024)
     print("[TRAINING INFO]")
     print(f"-- Model Feature extractor : {configs.model.backbone}")
     print(f"-- Total parameters        : {format(total_parameters, ',')}")

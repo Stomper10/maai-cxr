@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=experimental
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:0
 #SBATCH --cpus-per-task=16
 #SBATCH --time=0-12:00:00
 #SBATCH --mem=40000MB

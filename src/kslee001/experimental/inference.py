@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
     # load weights
     print("current : ", configs.model.backbone+args.backbonetype)
-    weights = sorted(glob.glob(f"./{configs.model.backbone}{args.backbonetype}*.h5"))
+    weights = sorted(glob.glob(f"./{configs.model.backbone}{args.backbonetype}_{configs.general.seed}*.h5"))
 
     best_weights = None
     best_auc = -1
