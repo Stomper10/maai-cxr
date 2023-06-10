@@ -7,281 +7,6 @@ from tensorflow.keras.models import Model
 from .pruning_modules import Augmentation, DenseNet, ConvNeXt, Classifier
 
 
-
-class Expert(tf.keras.Model):
-    def __init__(self, configs):
-        super().__init__()
-        """ CONFIGUTRATION """
-        # generatl configuration
-        self.configs = configs
-        self.target = configs.general.label
-        if self.target == 'card':
-            self.num_classes = 3
-        elif self.target == 'plef':
-            self.num_classes = 3
-        else:
-            self.num_classes = 2
-
-        initializer = tf.keras.initializers.HeNormal(seed=self.configs.general.seed)
-        regularizer = tf.keras.regularizers.l2(self.configs.model.regularization)
-        img_input = layers.Input(shape=(*configs.dataset.image_size, configs.dataset.image_channels))
-        
-        self.loss_tracker = tf.keras.metrics.Mean(name="loss")
-        self.auc = tf.keras.metrics.AUC()
-        
-        
-        """ MODEL ARCHITECTURE """
-        # architecture 0 : image augmentation (training data only)
-        self.augmentation, augmentation_output_shape = Augmentation(
-            model=self,
-            translation_height_factor=configs.augmentation.translation_height_factor, 
-            translation_width_factor=configs.augmentation.translation_width_factor, 
-            rotation_factor=configs.augmentation.rotation_factor,
-            zoom_height_factor=configs.augmentation.zoom_height_factor, 
-            zoom_width_factor=configs.augmentation.zoom_width_factor,
-            input_shape=(*configs.dataset.image_size, configs.dataset.image_channels),
-            seed=configs.general.seed
-        )
-        
-        self.feature_extractor, feature_extractor_output_shape = DenseNet(
-            model=self,
-            input_shape=augmentation_output_shape,
-            blocks=configs.model.densenet.blocks, # DenseNet 201 + additional blocks
-            growth_rate=configs.model.densenet.growth_rate,
-            num_classes=0, 
-            activation=None,
-            seed=configs.general.seed,
-            reg=configs.model.regularization,
-        )
-
-        self.classifier, _ = Classifier(
-            model=self, 
-            input_shape=feature_extractor_output_shape,
-            target_name=self.target,
-            num_classes=self.num_classes,
-            activation='softmax',
-            add_expert=configs.model.classifier.add_expert,
-            expert_filters=configs.model.classifier.expert_filters,
-            seed=configs.general.seed,
-            reg=configs.model.regularization,
-        )  
-
-        
-    def extract_feature(self, x, training=False):
-        """image augmentation """
-        for idx, layer_name in enumerate(self.augmentation):
-            if idx == 0:
-                feature = getattr(self, layer_name)(x, training=training)
-            else:
-                feature = getattr(self, layer_name)(feature, training=training)      
-                
-        """image feature extraction"""
-        for idx, layer_name in enumerate(self.feature_extractor):
-            if ('densenet_denseblock' in layer_name) & ('bn1' in layer_name):
-                feature_for_skip = tf.identity(feature)
-            elif ('densenet_denseblock' in layer_name) & ('concatenate' in layer_name):
-                feature = getattr(self, layer_name)([feature, feature_for_skip], training=training) # concatenate
-                feature_for_skip = None
-            else:
-                feature = getattr(self, layer_name)(feature, training=training)     
-                    
-        return feature
-
-
-    def classify(self, feature, training=False):
-        """classifier forward"""
-        for idx, layer_name in enumerate(self.classifier):
-            if idx == 0:
-                pred = getattr(self, layer_name)(feature, training=training)
-            else:
-                pred = getattr(self, layer_name)(pred, training=training)
-
-        return pred
-
-
-    def call(self, X, training=False):
-        x = X
-        """image forward"""
-        feature = self.extract_feature(x, training=training)
-
-        """label classification features"""
-        pred = self.classify(feature, training=training)
-        
-        return pred
-
-
-    def label_processing(self, y):
-        """label (Y) setting"""
-        # atel : ones (replace -1 with 1) (0.858)
-        if self.target == 'atel':
-            atel_gt = y[:, 0]
-            atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
-                            atel_gt) # float values needed !
-            atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
-            atel_gt = tf.one_hot(atel_gt, depth=2)
-            return atel_gt
-        
-        # card : multi (replace -1 with 2) (0.854)
-        if self.target == 'card':
-            card_gt = y[:, 1]
-            card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
-                            card_gt) 
-            card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-            card_gt = tf.one_hot(card_gt, depth=3)
-            return card_gt
-
-        # cons : ignore (0.937) -> U-zeros (0.932) adopted instead 
-        if self.target == 'cons':
-            cons_gt = y[:, 2]
-            cons_gt = tf.where(cons_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                            tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
-                            cons_gt) # float values needed !
-            cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
-            cons_gt = tf.one_hot(cons_gt, depth=2)
-            return cons_gt
-
-        # edem : ones (0.941)
-        if self.target == 'edem':
-            edem_gt = y[:, 3]
-            edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
-                            edem_gt)
-            edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
-            edem_gt = tf.one_hot(edem_gt, depth=2)
-            return edem_gt
-        
-        # plef : multi (0.936)
-        if self.target == 'plef':
-            plef_gt = y[:, 4]
-            plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
-                            plef_gt) 
-            plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-            plef_gt = tf.one_hot(plef_gt, depth=3)
-            return plef_gt
-
-
-    # def forward(self, x, x_aux, processed_y, training=False):
-    def forward(self, x, processed_y, training=False):
-        """forward pass"""
-        output = self(x, training=training)
-
-        """loss calculation (each label)"""
-        # atel : ones (replace -1 with 1)
-        loss = self.compiled_loss(processed_y, output)
-
-        # logging
-        self.loss_tracker.update_state(loss)
-        self.auc.update_state(processed_y, output)
-
-        return loss
-
-
-    def train_step(self, data):
-        # (img, aux_info), y = data
-        img, y = data
-        # label processing
-        processed_y = self.label_processing(y)
-
-        # calculate loss & logging
-        with tf.GradientTape() as tape:
-            if self.configs.general.distributed:
-                loss = tf.reduce_sum(
-                    self.forward(
-                        x=img, 
-                        processed_y=processed_y, 
-                        training=True
-                )) 
-            else:
-                loss = self.forward(
-                    x=img, 
-                    processed_y=processed_y, 
-                    training=True
-                )
-
-        # model weight update (backward)
-        gradients = tape.gradient(loss, self.trainable_variables)
-        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-
-        return {
-            "loss":self.loss_tracker.result(),
-            "auc":self.auc.result(),
-        }
-
-
-    def test_step(self, data):
-        # (img, aux_info), y = data
-        img, y = data
-        # label processing
-        processed_y = self.label_processing(y)
-
-        # calculate loss & logging
-        if self.configs.general.distributed:
-            _ = tf.reduce_sum(
-                self.forward(
-                    x=img, 
-                    processed_y=processed_y, 
-                    training=False
-            )) 
-        else:
-            _ = self.forward(
-                x=img, 
-                processed_y=processed_y, 
-                training=False
-            )
-
-        # model weight update (backward)
-
-        return {
-            "loss":self.loss_tracker.result(),
-            "auc":self.auc.result(),
-        }
-
-    # # for test
-    # def prediction(self, atel_output, card_output, cons_output, edem_output, plef_output):
-    #     """
-    #     Function to process the model's predictions.
-    #     This function assumes that the predictions are logits over labels,
-    #     and converts them into final label predictions according to the same scheme as in validation.
-    #     """
-
-    #     # Assuming atel_output, cons_output, etc. are the outputs of your model for different classes
-    #     # Only consider the first logit for 'card' and 'plef', ignore the rest
-    #     pred = tf.argmax(output[..., :1], axis=-1)
-
-    #     return atel_pred, card_pred, cons_pred, edem_pred, plef_pred
-
-
-    def initialize(self):
-        img_sample = tf.zeros((1, *self.configs.dataset.image_size, self.configs.dataset.image_channels))
-        # aux_sample = tf.zeros((1,2))
-        self(img_sample, training=False)
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 class A2IModel(tf.keras.Model):
     def __init__(self, configs):
         super().__init__()
@@ -313,7 +38,8 @@ class A2IModel(tf.keras.Model):
             input_shape=(*configs.dataset.image_size, configs.dataset.image_channels),
             seed=configs.general.seed
         )
-        
+
+
         # architecture 1 : feature extractor
         if configs.model.backbone == 'densenet':
             self.feature_extractor, feature_extractor_output_shape = DenseNet(
@@ -484,7 +210,7 @@ class A2IModel(tf.keras.Model):
 
     def label_processing(self, y):
         """label (Y) setting"""
-        # atel : ones (replace -1 with 1) (0.858)
+        # atel : ones (replace -1 with 1)
         atel_gt = y[:, 0]
         atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
@@ -492,7 +218,7 @@ class A2IModel(tf.keras.Model):
         atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
         atel_gt = tf.one_hot(atel_gt, depth=2)
         
-        # card : multi (replace -1 with 2) (0.854)
+        # card : multi (replace -1 with 2)
         card_gt = y[:, 1]
         card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
@@ -500,15 +226,15 @@ class A2IModel(tf.keras.Model):
         card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
         card_gt = tf.one_hot(card_gt, depth=3)
 
-        # cons : ignore (0.937) -> U-zeros (0.932) adopted instead 
+        # cons : ignore
         cons_gt = y[:, 2]
-        cons_gt = tf.where(cons_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                           tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
-                           cons_gt) # float values needed !
+        cons_indices = tf.where(cons_gt != tf.constant(-1.0, dtype=self.configs.general.tf_dtype)) # ignore -1 rows
+        cons_indices = tf.reshape(cons_indices, [-1])
+        cons_gt = tf.gather(cons_gt, cons_indices)
         cons_gt = tf.cast(cons_gt, dtype=tf.int32) # onehot : integer needed
         cons_gt = tf.one_hot(cons_gt, depth=2)
-
-        # edem : ones (0.941)
+        
+        # edem : ones
         edem_gt = y[:, 3]
         edem_gt = tf.where(edem_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
@@ -516,7 +242,7 @@ class A2IModel(tf.keras.Model):
         edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
         edem_gt = tf.one_hot(edem_gt, depth=2)
         
-        # plef : multi (0.936)
+        # plef : multi
         plef_gt = y[:, 4]
         plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
                            tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
@@ -527,7 +253,7 @@ class A2IModel(tf.keras.Model):
         output = (
             (atel_gt, None), 
             (card_gt, None), 
-            (cons_gt, None),  # no 'ignore' indices 
+            (cons_gt, cons_indices), 
             (edem_gt, None), 
             (plef_gt, None)
         )
@@ -550,7 +276,7 @@ class A2IModel(tf.keras.Model):
         card_loss = self.compiled_loss(processed_y[1][0], outputs[1])
         
         # cons : ignore
-        # outputs[2] = tf.gather(outputs[2], processed_y[2][1]) # ignore some predictions
+        outputs[2] = tf.gather(outputs[2], processed_y[2][1]) # ignore some predictions
         cons_loss = self.compiled_loss(processed_y[2][0], outputs[2])
         
         # edem : ones

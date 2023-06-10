@@ -14,7 +14,8 @@ from tensorflow.keras import mixed_precision
 import wandb
 
 # private
-from modules.model import Expert as A2IModel
+from modules.model import A2IModel
+from modules.model_ensemble import A2IModel as A2IModel_ensemble
 from cfg import configs
 import functions
 
@@ -24,16 +25,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cluster', action='store', default='akmu')
     parser.add_argument('-f', '--backbone', action='store', default='densenet')
-    parser.add_argument('-a', '--add_expert', action='store_true')
+    parser.add_argument('-a', '--add_ensemble', action='store_true')
     parser.add_argument('-e', '--epochs', action ='store', type=int, default=5)
     parser.add_argument('-b', '--batch', action='store', type=int, default=16)
     parser.add_argument('-p', '--progress_bar', action ='store_false')
-    parser.add_argument('-l', '--label', action ='store')
-    parser.add_argument('-s', '--seed', action='store', default=1005)
 
     # for debugging
     parser.add_argument('-t', '--test', action='store_true')
-    parser.add_argument('-g', '--single_gpu', action ='store_true')
+    parser.add_argument('-s', '--single_gpu', action ='store_true')
     parser.add_argument('-w', '--wandb_off', action='store_false')
 
     args = parser.parse_args()
@@ -46,30 +45,24 @@ if __name__ == '__main__':
     if cluster == 'akmu':
         configs.dataset.data_dir = '/data/s1/gyuseong/chexpert-resized'
     configs.model.backbone = args.backbone
-    configs.general.seed = int(args.seed)
-    configs.model.classifier.add_expert = bool(args.add_expert)
+    configs.model.add_ensemble = bool(args.add_ensemble)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.general.label = args.label
-    configs.wandb.run_name = f'experimental-{configs.general.label}-{configs.general.seed}-{configs.model.backbone}121-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'a2i-{cluster}-{configs.model.backbone}-{configs.dataset.image_size[0]}'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
-    configs.saved_model_path = "./" + f"{configs.general.label}_{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
+    configs.saved_model_path = "./" + configs.model.backbone + "_best_model_{epoch:02d}-{val_loss:.2f}.h5" 
 
-    print(f"[TRAINING] current seed : {configs.general.seed}")
-    functions.set_seed(configs.general.seed)
-    
     # wandb initialization
     if configs.wandb.use_wandb == True :
         wandb.login()
         run = wandb.init(project=configs.wandb.project_name, name=configs.wandb.run_name, config=configs)
 
     # multi-gpu training strategy
-    if configs.general.distributed:
-        strategy = tf.distribute.MirroredStrategy()
-        num_devices = strategy.num_replicas_in_sync
-        configs.general.batch_size = configs.general.batch_size*num_devices # global batch size
+    strategy = tf.distribute.MirroredStrategy()
+    num_devices = strategy.num_replicas_in_sync
+    configs.general.batch_size = configs.general.batch_size*num_devices # global batch size
 
     # mixed precision policy
     policy = mixed_precision.Policy('mixed_float16' if configs.general.precision == 16 else 'float32')
@@ -83,19 +76,19 @@ if __name__ == '__main__':
     if args.single_gpu == False:
         with strategy.scope():
             model, callbacks = functions.set_model_callbacks(
-                model_class=A2IModel, 
+                model_class=A2IModel_ensemble if configs.model.add_ensemble==True else A2IModel, 
                 configs=configs
             )
     else:
         model, callbacks = functions.set_model_callbacks(
-            model_class=A2IModel, 
+            model_class=A2IModel_ensemble if configs.model.add_ensemble==True else A2IModel, 
             configs=configs
         )
 
     # training
     total_parameters = model.count_params()
-    model.save_weights(f"sample_model_{configs.general.seed}.h5")
-    file_size = os.path.getsize(f"sample_model_{configs.general.seed}.h5") / (1024 * 1024)
+    model.save_weights("sample_model.h5")
+    file_size = os.path.getsize("sample_model.h5") / (1024 * 1024)
     print("[TRAINING INFO]")
     print(f"-- Model Feature extractor : {configs.model.backbone}")
     print(f"-- Total parameters        : {format(total_parameters, ',')}")
@@ -107,7 +100,7 @@ if __name__ == '__main__':
         callbacks=callbacks,
         workers=configs.general.num_workers,
         verbose=configs.general.progress_bar, 
-        shuffle=True,
+        # shuffle=True,
     )
     losses = model.evaluate(test_dataset)
 

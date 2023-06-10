@@ -121,7 +121,8 @@ def load_datasets(configs):
     # train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train_aux, Y_train))
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train))
     train_dataset = train_dataset.map(process_path, num_parallel_calls=AUTOTUNE)
-    train_dataset = train_dataset.batch(configs.general.batch_size, drop_remainder=True)
+    train_dataset = train_dataset.shuffle(buffer_size=10000)
+    train_dataset = train_dataset.batch(configs.general.batch_size, drop_remainder=True).repeat()
     train_dataset = train_dataset.prefetch(configs.general.batch_size)
     train_dataset.steps_per_epoch = len(X_train) // configs.general.batch_size
 
@@ -143,44 +144,29 @@ def load_datasets(configs):
 
 
 
-def set_model_callbacks(model_class, weights_path=None, configs=None, training=True):
+def set_model_callbacks(model_class, configs):
     model = model_class(configs=configs)
     model.initialize()
-
-    if weights_path is not None:
-        model.load_weights(weights_path)
-    if training == True:
-        scheduler = CustomOneCycleSchedule(
-            max_lr=configs.optimizer.learning_rate, 
-            epochs=configs.general.epochs,
-            steps_per_epoch=configs.general.steps_per_epoch,
-            start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
-        )
-        optimizer = tf.keras.optimizers.AdamW(
-            learning_rate=scheduler,
-            weight_decay=configs.optimizer.weight_decay,
-            beta_1=configs.optimizer.beta_1,
-            beta_2=configs.optimizer.beta_2,
-            ema_momentum=configs.optimizer.ema_momentum,
-        )    
-        criterion = tf.keras.losses.CategoricalCrossentropy(
-            # from_logits=True,
-            from_logits=False, 
-            label_smoothing=configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
-        )
-        model.compile(optimizer=optimizer, loss=criterion) 
-    else:
-        if weights_path is not None:
-            model.load_weights(weights_path)
-        criterion = tf.keras.losses.CategoricalCrossentropy(
-            # from_logits=True,
-            from_logits=False, 
-            label_smoothing=configs.model.label_smoothing,
-            reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
-        )
-        model.compile(loss=criterion)
-
+    scheduler = CustomOneCycleSchedule(
+        max_lr=configs.optimizer.learning_rate, 
+        epochs=configs.general.epochs,
+        steps_per_epoch=configs.general.steps_per_epoch,
+        start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
+    )
+    optimizer = tf.keras.optimizers.AdamW(
+        learning_rate=scheduler,
+        weight_decay=configs.optimizer.weight_decay,
+        beta_1=configs.optimizer.beta_1,
+        beta_2=configs.optimizer.beta_2,
+        ema_momentum=configs.optimizer.ema_momentum,
+    )    
+    criterion = tf.keras.losses.BinaryCrossentropy(
+        # from_logits=True,
+        from_logits=False, 
+        label_smoothing=configs.model.label_smoothing,
+        reduction=tf.keras.losses.Reduction.SUM if configs.general.distributed else 'auto'
+    )
+    model.compile(optimizer=optimizer, loss=criterion) 
     callbacks = [
         # model checkpoint
         tf.keras.callbacks.ModelCheckpoint(

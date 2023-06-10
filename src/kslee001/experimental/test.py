@@ -1,10 +1,10 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# import os
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 # # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 # # os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 # import pandas as pd
 # from tqdm.auto import tqdm as tq
-import tensorflow as tf
+# import tensorflow as tf
 
 # # private
 # # from modules.model import TestModel
@@ -13,15 +13,19 @@ import tensorflow as tf
 # import functions
 
 if __name__ == '__main__':
-    a = tf.random.uniform(shape=(16, 1), minval=-1, maxval=2, dtype=tf.int32)
-    a = tf.cast(a, dtype=tf.float32)
-    print(a)
-    a = tf.where(a == tf.constant(a==-1.0))
+    # load datasets : tf tensor dataset, simlilar to torch dataloader
 
+    # model = A2IModel(configs=configs)
+    # model.summary()
+    import os
+    import glob
 
-    exit()
-    atel_gt = tf.where(atel_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                        tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
-                        atel_gt) # float values needed !
-    atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
-    atel_gt = tf.one_hot(atel_gt, depth=2)
+    files = glob.glob('/data/s1/gyuseong/chexpert-resized/train_320/*.jpg')
+
+    idx = 0
+    for f in files:
+        print(f)
+        idx += 1
+        if idx == 100:
+            break
+

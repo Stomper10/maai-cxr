@@ -131,7 +131,9 @@ def DenseNet(
     num_classes=0, 
     activation=None,
     seed=1005,
-    reg=0.):
+    reg=0.,
+    name_prefix='dn',
+    ):
     if len(input_shape) > 3: input_shape = input_shape[-3:]
 
     layers_names = []
@@ -141,6 +143,7 @@ def DenseNet(
     regularizer = tf.keras.regularizers.l2(reg)
 
     def set_layer(img_input, name, layer, args:dict):
+        name = name_prefix+'_'+name
         setattr(model, name, layer(**args, name=name))
         # pass dummy img input --> to get output shape of the layer
         img_input = getattr(model, name)(img_input) 
@@ -240,7 +243,8 @@ def ConvNeXt(
     num_classes=0, 
     activation=None,
     seed=1005,
-    reg=0.
+    reg=0.,
+    name_prefix='cn',
     ):
     if len(input_shape) > 3: input_shape = input_shape[-3:]
     
@@ -251,6 +255,7 @@ def ConvNeXt(
     regularizer = tf.keras.regularizers.l2(reg)
 
     def set_layer(img_input, name, layer, args:dict):
+        name = name_prefix+'_'+name
         setattr(model, name, layer(**args, name=name))
         # pass dummy img input --> to get output shape of the layer
         img_input = getattr(model, name)(img_input) 

@@ -45,11 +45,10 @@ DENSENET_CONFIGS = {
 }
 
 configs = EasyDict()
-configs.saved_model_path = None
 """genearl configuration"""
 configs.general = EasyDict()
 configs.general.seed = 1005
-configs.general.batch_size = 16
+configs.general.batch_size = 2
 configs.general.epochs = 30 
 configs.general.steps_per_epoch = None
 configs.general.precision = 32 # fp32
@@ -57,6 +56,7 @@ configs.general.num_workers = 16
 configs.general.tf_dtype = tf.float16 if configs.general.precision==16 else tf.float32
 configs.general.distributed = True
 configs.general.progress_bar = 1 # 0 : silence , 1 : progressbar , 2 : one line per epoch
+
 """dataset configuration"""
 configs.dataset = EasyDict()
 configs.dataset.data_dir = None # defined at runtime
@@ -98,20 +98,20 @@ configs.optimizer.focal_loss = None
 """model configuration"""
 # model - general
 configs.model = EasyDict()
+configs.model.add_ensemble = None
 configs.model.backbone = 'densenet'
 configs.model.regularization = 5e-5
 configs.model.label_smoothing = 0.1
 configs.model.use_aux_information = False
 # model - densenet
 configs.model.densenet = EasyDict()
-configs.model.densenet.size = '121'
-configs.model.densenet.blocks = DENSENET_CONFIGS[f"densenet{configs.model.densenet.size}"]["blocks"]
+configs.model.densenet.blocks = DENSENET_CONFIGS["densenet201"]["blocks"]
 configs.model.densenet.growth_rate = 32
 # model - convnext
 configs.model.convnext = EasyDict()
 configs.model.convnext.drop_path_rate = 0.1
 configs.model.convnext.layer_scale_init_value = 1e-6
-configs.model.convnext.size = 'small'
+configs.model.convnext.size = 'xlarge'
 configs.model.convnext.depth = CONVNEXT_CONFIGS[configs.model.convnext.size]['depths']
 configs.model.convnext.projection_dims = CONVNEXT_CONFIGS[configs.model.convnext.size]['projection_dims']
 # model - classifier
