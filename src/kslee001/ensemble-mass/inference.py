@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cluster', action='store', default='akmu')
     parser.add_argument('-b', '--backbone', action='store', default='densenet')
-    parser.add_argument('-t', '--backbonetype', action='store', default='')
+    parser.add_argument('-t', '--backbonetype', action='store', default='121')
     parser.add_argument('-s', '--seed', action='store', default=1005, type=int)
 
     args = parser.parse_args()
@@ -83,6 +83,7 @@ if __name__ == '__main__':
 
     best_weights = None
     best_auc = -1
+    best_result = None
     for path in weights:
         model, _ = functions.set_model_callbacks(
             model_class=A2IModel,
@@ -101,15 +102,17 @@ if __name__ == '__main__':
         average_auc = np.round(np.mean(losses[2:]), 4)
 
         # evaluation
-        print("[RESULT] of : ", path)
-        print( str([f"val_loss : {np.round(losses[0], 4)}"] + [ f"{targets[idx]} : {np.round(losses[2:][idx], 4)}"  for idx in range(5) ]))
-        print("-- average AUC : ", average_auc)
-        print(f"-- DURATION : {duration} | 1 image : {single_image_processing} | 1 sec : {process_images_per_sec}\n")
+        # print("[RESULT] of : ", path)
+        # print( str([f"val_loss : {np.round(losses[0], 4)}"] + [ f"{targets[idx]} : {np.round(losses[2:][idx], 4)}"  for idx in range(5) ]))
+        # print("-- average AUC : ", average_auc)
+        # print(f"-- DURATION : {duration} | 1 image : {single_image_processing} | 1 sec : {process_images_per_sec}\n")
         if average_auc > best_auc:
             best_auc = average_auc
             best_weights = path
-
+            best_result = losses[1:]
 
     print("\n[RESULT]")
-    print(f"best model : {best_weights}")
-    print(f"best auc   : {best_auc}")
+    print(f"SEED        : {configs.general.seed}")
+    print(f"best model  : {best_weights}")
+    print(f"best auc    : {best_auc}")
+    print(f"best result : {best_result}" )
