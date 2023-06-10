@@ -35,7 +35,7 @@ import argparse
 import numpy as np
 from PIL import Image
 import sklearn.metrics as metrics
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, f1_score, accuracy_score
 from config import Config
 
 import classify
@@ -94,17 +94,23 @@ def main():
 
   labels = np.array([value[0] for value in labels_dict.values()])
   output = np.array([value[1:] for value in labels_dict.values()]).mean(axis=1)
+  output_bin = (output > 0.5).astype(int)
 
-  print("[ Eensemble AUROC score ]")
+  print("[ Eensemble Evaluation Results ]")
   print("Model names:", config.model_list)
   print("# of Models:", len(config.model_list))
-  roc_cum = 0
+  print("      AUROC /  F1   /  Acc")
+  roc_cum, f1_cum, acc_cum = 0, 0, 0
   for i in range(5):
     fpr, tpr, _ = roc_curve(labels[:, i], output[:, i])
     roc_auc = metrics.auc(fpr, tpr)
     roc_cum += roc_auc
-    print(f"{label_names[i]}: {roc_auc:.3f}")
-  print(f"*Avg: {roc_cum / 5:.3f}")
+    f1 = f1_score(labels[:, i], output_bin[:, i])
+    f1_cum += f1
+    acc = accuracy_score(labels[:, i], output_bin[:, i])
+    acc_cum += acc
+    print(f"{label_names[i]}: {roc_auc:.3f} / {f1:.3f} / {acc:.3f}")
+  print(f"*Avg: {roc_cum / 5:.3f} / {f1_cum / 5:.3f} / {acc_cum / 5:.3f}")
 
   sys.stdout.close()
   sys.stdout = stdoutOrigin
