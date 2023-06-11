@@ -57,7 +57,7 @@ if __name__ == '__main__':
     configs.general.seed = int(args.seed)
 
     configs.model.classifier.add_expert = False
-    configs.dataset.cutoff = 10
+    configs.dataset.cutoff = None
     configs.wandb.use_wandb = False
     configs.wandb.run_name = None
     configs.general.distributed = False
@@ -84,35 +84,55 @@ if __name__ == '__main__':
     best_weights = None
     best_auc = -1
     best_result = None
-    for path in weights:
-        model, _ = functions.set_model_callbacks(
+
+    test_best_weights = None
+    test_best_auc = -1
+    valid_best_weights = None
+    valid_best_auc = -1
+    valid_metric_score_for_testset = None
+
+    for path in tq(weights):
+        test_model, _ = functions.set_model_callbacks(
+            model_class=A2IModel,
+            weights_path=path,
+            configs=configs,
+            training=False,
+        )
+        valid_model, _ = functions.set_model_callbacks(
             model_class=A2IModel,
             weights_path=path,
             configs=configs,
             training=False,
         )
         start_time = t.time()
-        losses = model.evaluate(test_dataset, verbose=0)
-        end_time = t.time()
-        duration = np.round(end_time-start_time, 6)
-        process_images_per_sec = np.round(202/duration, 6)
-        single_image_processing = np.round(1/process_images_per_sec, 6)
+        test_metric_score = test_model.evaluate(test_dataset, verbose=0)
+        test_average_auc = test_metric_score[2:]
+        valid_metric_score = valid_model.evaluate(valid_dataset, verbose=0)
+        valid_average_auc = valid_metric_score[2:]
 
         targets = ['atel', 'card', 'cons', 'edem', 'plef']
-        average_auc = np.round(np.mean(losses[2:]), 4)
+        test_average_auc = np.round(np.mean(test_average_auc[2:]), 4)
+        valid_average_auc = np.round(np.mean(valid_average_auc[2:]), 4)
 
-        # evaluation
-        # print("[RESULT] of : ", path)
-        # print( str([f"val_loss : {np.round(losses[0], 4)}"] + [ f"{targets[idx]} : {np.round(losses[2:][idx], 4)}"  for idx in range(5) ]))
-        # print("-- average AUC : ", average_auc)
-        # print(f"-- DURATION : {duration} | 1 image : {single_image_processing} | 1 sec : {process_images_per_sec}\n")
-        if average_auc > best_auc:
-            best_auc = average_auc
-            best_weights = path
-            best_result = losses[1:]
+        if test_average_auc > test_best_auc:
+            test_best_auc = test_average_auc
+            test_best_weights = path
 
+        if valid_average_auc > valid_best_auc:
+            valid_best_auc = valid_average_auc
+            valid_best_weights = path
+            valid_metric_score_for_testset = valid_model.evaluate(test_dataset, verbose=0)
+
+    test_best_auc = np.round(test_best_auc, 4)
+    valid_best_auc = np.round(valid_best_auc, 4)
+    valid_metric_score_for_testset = np.round(valid_metric_score_for_testset, 4)
     print("\n[RESULT]")
-    print(f"SEED        : {configs.general.seed}")
-    print(f"best model  : {best_weights}")
-    print(f"best auc    : {best_auc}")
-    print(f"best result : {best_result}" )
+    print(f"# ===== TEST BEST MODEL of seed {configs.general.seed}=====")
+    print(f"best model : {test_best_weights}")
+    print(f"best auc   : {test_best_auc}")
+
+    print(f"# ===== VALID BEST MODEL of seed {configs.general.seed}=====")
+    print(f"best model : {valid_best_weights}")
+    print(f"best auc   : {valid_best_auc}\n\n")
+    print(f"auc for test set : {valid_metric_score_for_testset}\n\n")
+    print(f"difference : {test_best_auc - valid_metric_score_for_testset}")

@@ -56,6 +56,7 @@ if __name__ == '__main__':
     configs.saved_model_path = "./" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
 
     print(f"[TRAINING] current seed : {configs.general.seed}")
+    functions.set_seed(configs.general.seed)
 
     # wandb initialization
     if configs.wandb.use_wandb == True :

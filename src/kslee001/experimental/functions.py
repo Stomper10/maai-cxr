@@ -137,6 +137,8 @@ def load_datasets(configs):
     test_dataset = test_dataset.batch(configs.general.batch_size)
     test_dataset = test_dataset.prefetch(configs.general.batch_size)
 
+
+
     return train_dataset, valid_dataset, test_dataset
 
 
@@ -171,8 +173,6 @@ def set_model_callbacks(model_class, weights_path=None, configs=None, training=T
         )
         model.compile(optimizer=optimizer, loss=criterion) 
     else:
-        if weights_path is not None:
-            model.load_weights(weights_path)
         criterion = tf.keras.losses.CategoricalCrossentropy(
             # from_logits=True,
             from_logits=False, 
