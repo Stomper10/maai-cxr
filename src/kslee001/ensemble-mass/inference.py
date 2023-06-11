@@ -19,11 +19,11 @@ from wandb.keras import WandbCallback, WandbMetricsLogger
 # private
 from modules.model import A2IModel
 from modules.lr_scheduler import CustomOneCycleSchedule, LearningRateLogger
-# from cfg import configs
+from cfg import configs
 import functions
+configs.model.backbone = 'densenet'
+configs.model.densenet.size = '121'
 
-
-# configs.model.backbone = 'densenet'
 # configs.model.backbone = 'convnext'
 
 if __name__ == '__main__':
@@ -81,6 +81,7 @@ if __name__ == '__main__':
     print("current : ", configs.model.backbone+args.backbonetype)
     weights = sorted(glob.glob(f"./{configs.model.backbone}{args.backbonetype}_{configs.general.seed}*.h5"))
 
+
     best_weights = None
     best_auc = -1
     best_result = None
@@ -90,6 +91,7 @@ if __name__ == '__main__':
     valid_best_weights = None
     valid_best_auc = -1
     valid_metric_score_for_testset = None
+    targets = ['atel', 'card', 'cons', 'edem', 'plef']
 
     for path in tq(weights):
         test_model, _ = functions.set_model_callbacks(
@@ -106,13 +108,25 @@ if __name__ == '__main__':
         )
         start_time = t.time()
         test_metric_score = test_model.evaluate(test_dataset, verbose=0)
+        end_time = t.time()
+        duration = np.round(end_time - start_time, 4)
+        processing_time_1_image = np.round(duration/202, 4) # 전체시간 / 이미지 개수
+        processing_time_1_sec = np.floor(202/duration)
         test_average_auc = test_metric_score[2:]
+
+
         valid_metric_score = valid_model.evaluate(valid_dataset, verbose=0)
         valid_average_auc = valid_metric_score[2:]
 
-        targets = ['atel', 'card', 'cons', 'edem', 'plef']
         test_average_auc = np.round(np.mean(test_average_auc[2:]), 4)
         valid_average_auc = np.round(np.mean(valid_average_auc[2:]), 4)
+
+        print("[RESULT] of : ", path)
+        print("-- TEST average AUC  : ", test_average_auc)
+        print( str([f"test_loss : {np.round(test_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(test_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
+        print("-- VALID average AUC : ", valid_average_auc)
+        print( str([f"val_loss  : {np.round(valid_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(valid_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
+        print(f"-- INFERENCE TIME (TEST DATASET) : {duration} | 1 image : {processing_time_1_image} | 1 sec : {processing_time_1_sec}\n")
 
         if test_average_auc > test_best_auc:
             test_best_auc = test_average_auc
