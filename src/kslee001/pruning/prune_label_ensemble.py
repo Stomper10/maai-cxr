@@ -24,7 +24,7 @@ configs.general.distributed = False
 configs.general.epochs = 5
 configs.general.batch_size = 16 # 원하는 경우 batch size 변경 가능
 
-DATA_DIRECTORY = '/home/n1/gyuseonglee/workspace/datasets/chexpert-resized'
+DATA_DIRECTORY = '/home/gyuseonglee/workspace/dataset/chexpert-resized'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -44,6 +44,7 @@ if __name__ == '__main__':
 
 
     targets = ['atel', 'card', 'cons', 'edem', 'plef']
+    # targets = ['plef']
     for target in targets:
         configs.general.label = target
         weights = glob.glob(f'./weights/label_ensemble/{target}/*{configs.general.seed}*.h5')

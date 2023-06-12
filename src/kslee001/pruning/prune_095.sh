@@ -6,7 +6,7 @@
 #SBATCH --time=0-12:00:00
 #SBATCH --mem=40000MB
 
-for seed in 1005 317 1203 7613
+for seed in 1005 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 11000 12000
 do
-   sbatch run_prune_label_ensemble.sh --target_sparsity 0.90 --seed $seed
+   sbatch run_prune.sh --target_sparsity 0.95 --seed $seed
 done
