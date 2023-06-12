@@ -36,7 +36,7 @@ import numpy as np
 from PIL import Image
 import sklearn.metrics as metrics
 from sklearn.metrics import roc_curve, f1_score, accuracy_score
-from config_ens import Config
+from config_sin import Config
 
 import classify
 import tflite_runtime.interpreter as tflite
@@ -80,8 +80,9 @@ def main():
   sys.stdout = open(f"./logs/{uuid.uuid4().hex}.txt", "w")
   print(vars(config))
   
+  label_idx = {"Atel": 0, "Card": 1, "Cons": 2, "Edem": 3, "Pleu": 4}
+  target_idx = label_idx[config.name]
   labels_dict = CXR_test_label(config.labels)
-  label_names = ["Atel", "Card", "Cons", "Edem", "Pleu"]
 
   for model in config.model_list:
     print("Model name: ", model)
@@ -113,21 +114,15 @@ def main():
   output = np.array([value[1:] for value in labels_dict.values()]).mean(axis=1)
   output_bin = (output > 0.5).astype(int)
 
-  print("[ Eensemble Evaluation Results ]")
+  print("[ Ensemble Evaluation Results ]")
   print("Model names:", config.model_list)
   print("# of Models:", len(config.model_list))
   print("      AUROC /  F1   /  Acc")
-  roc_cum, f1_cum, acc_cum = 0, 0, 0
-  for i in range(labels.shape[1]):
-    fpr, tpr, _ = roc_curve(labels[:, i], output[:, i])
-    roc_auc = metrics.auc(fpr, tpr)
-    roc_cum += roc_auc
-    f1 = f1_score(labels[:, i], output_bin[:, i])
-    f1_cum += f1
-    acc = accuracy_score(labels[:, i], output_bin[:, i])
-    acc_cum += acc
-    print(f"{label_names[i]}: {roc_auc:.3f} / {f1:.3f} / {acc:.3f}")
-  print(f"*Avg: {roc_cum / labels.shape[1]:.3f} / {f1_cum / labels.shape[1]:.3f} / {acc_cum / labels.shape[1]:.3f}")
+  fpr, tpr, _ = roc_curve(labels[:, target_idx], output[:, 0])
+  roc_auc = metrics.auc(fpr, tpr)
+  f1 = f1_score(labels[:, target_idx], output_bin[:, 0])
+  acc = accuracy_score(labels[:, target_idx], output_bin[:, 0])
+  print(f"{config.name}: {roc_auc:.3f} / {f1:.3f} / {acc:.3f}")
 
   sys.stdout.close()
   sys.stdout = stdoutOrigin

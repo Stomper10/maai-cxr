@@ -1,6 +1,10 @@
-model=densenet121_1005_edgetpu.tflite
+# Single model inference for 1 output
 
-python3 classify_cxr.py \
+model=plef_densenet121_7613_test_edgetpu.tflite
+name=Pleu
+
+python3 classify_cxr_sin.py \
      --model models/$model \
      --labels CheXpert-v1.0/test_project.csv \
-     > logs/$model.txt
+     --name $name \
+     > logs/single_${name}_${model}.txt
