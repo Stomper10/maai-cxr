@@ -2,6 +2,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
+import glob
 import argparse
 import pandas as pd
 import numpy as np
@@ -11,8 +12,8 @@ import tensorflow_model_optimization as tfmot # pip install 필요!
 from tensorflow.keras import mixed_precision
 import wandb
 
-from modules.model import A2IModel
-from cfg import configs
+from modules_label_ensemble.model import Expert as A2IModel
+from cfg_label_ensemble import configs
 import functions
 
 
@@ -23,7 +24,7 @@ configs.general.distributed = False
 configs.general.epochs = 5
 configs.general.batch_size = 16 # 원하는 경우 batch size 변경 가능
 
-DATA_DIRECTORY = '/home/gyuseonglee/workspace/dataset/chexpert-resized'
+DATA_DIRECTORY = '/home/n1/gyuseonglee/workspace/datasets/chexpert-resized'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -44,18 +45,20 @@ if __name__ == '__main__':
 
     targets = ['atel', 'card', 'cons', 'edem', 'plef']
     for target in targets:
-
-        weights = glob.glob(f'/home/gyuseonglee/workspace/maai-cxr/src/kslee001/pruning/weights/label_ensemble/{target}/*.h5')
+        configs.general.label = target
+        weights = glob.glob(f'./weights/label_ensemble/{target}/*{configs.general.seed}*.h5')
 
         for weight in (weights):
 
-            SAVE_NAME = f'./pruned_weights/label_ensemble/{target}/' + weight.rsplit('/', 1)[1].rsplit('.h5', 1)[0]
+            SAVE_NAME = f"./pruned_weights/label_ensemble/{target}/pruned_{str(target_sparsity)}_{weight.rsplit('/', 1)[1].rsplit('.h5', 1)[0]}"
             configs.saved_model_path = f"{SAVE_NAME}.h5" 
+            
+            print(f"\n[INFO] current model will be saved as {SAVE_NAME}\n")
 
             # load model
             model = A2IModel(configs=configs)
             model.initialize()
-            model.load_weights(WEIGHT_DIRECTORY) # base model weight 불러오기
+            model.load_weights(weight) # base model weight 불러오기
             criterion = tf.keras.losses.CategoricalCrossentropy(
                 from_logits=False,
                 label_smoothing=0.1,

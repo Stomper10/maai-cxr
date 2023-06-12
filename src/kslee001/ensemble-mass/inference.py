@@ -62,7 +62,7 @@ if __name__ == '__main__':
     configs.wandb.run_name = None
     configs.general.distributed = False
     configs.general.epochs = 1
-    configs.general.batch_size = 16
+    configs.general.batch_size = 256
     configs.saved_model_path = "./" + configs.model.backbone + "_{epoch:02d}-{val_loss:.2f}.h5" 
 
     # multi-gpu training strategy
@@ -93,7 +93,8 @@ if __name__ == '__main__':
     valid_metric_score_for_testset = None
     targets = ['atel', 'card', 'cons', 'edem', 'plef']
 
-    for path in tq(weights):
+    # for path in tq(weights):
+    for path in (weights):
         test_model, _ = functions.set_model_callbacks(
             model_class=A2IModel,
             weights_path=path,
@@ -121,12 +122,12 @@ if __name__ == '__main__':
         test_average_auc = np.round(np.mean(test_average_auc[2:]), 4)
         valid_average_auc = np.round(np.mean(valid_average_auc[2:]), 4)
 
-        print("[RESULT] of : ", path)
-        print("-- TEST average AUC  : ", test_average_auc)
-        print( str([f"test_loss : {np.round(test_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(test_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
-        print("-- VALID average AUC : ", valid_average_auc)
-        print( str([f"val_loss  : {np.round(valid_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(valid_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
-        print(f"-- INFERENCE TIME (TEST DATASET) : {duration} | 1 image : {processing_time_1_image} | 1 sec : {processing_time_1_sec}\n")
+        # print("[RESULT] of : ", path)
+        # print("-- TEST average AUC  : ", test_average_auc)
+        # print( str([f"test_loss : {np.round(test_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(test_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
+        # print("-- VALID average AUC : ", valid_average_auc)
+        # print( str([f"val_loss  : {np.round(valid_metric_score[0], 4)}"] + [ f"{targets[idx]} : {np.round(valid_metric_score[2:][idx], 4)}"  for idx in range(5) ]))
+        # print(f"-- INFERENCE TIME (TEST DATASET) : {duration} | 1 image : {processing_time_1_image} | 1 sec : {processing_time_1_sec}\n")
 
         if test_average_auc > test_best_auc:
             test_best_auc = test_average_auc
