@@ -35,7 +35,7 @@ import sklearn.metrics as metrics
 from sklearn.metrics import roc_curve, f1_score, accuracy_score
 
 import classify
-from config_ens import Config
+from config import Config
 import tensorflow as tf
 
 def CXR_test_label(test_label_path):
@@ -60,12 +60,14 @@ def main():
     stdoutOrigin = sys.stdout 
     sys.stdout = open(f"./logs/{uuid.uuid4().hex}.txt", "w")
     print(vars(config))
-    
+
+    label_idx = {"Atel": 0, "Card": 1, "Cons": 2, "Edem": 3, "Pleu": 4}
+    target_idx = label_idx[config.name]
     labels_dict = CXR_test_label(config.labels)
-    label_names = ["Atel", "Card", "Cons", "Edem", "Pleu"]
 
     for model in config.model_list:
         print("Model name: ", model)
+
         interpreter = tf.lite.Interpreter("./models/" + model)
         interpreter.allocate_tensors()
 
@@ -86,29 +88,23 @@ def main():
             data_pred_cat = classify.output_tensor(interpreter)
             labels_dict[key].append([data_pred_cat[f"{i}"][1] if len(data_pred_cat[f"{i}"]) == 2 else softmax(data_pred_cat[f"{i}"][:2])[1] for i in range(len(data_pred_cat))])
             print(labels_dict[key])
-
+        
         print(f"Avg. {sum(inference_time_list) / len(labels_dict):.1f}ms per image.")
         print("End inferencing:", model)
-
+        
     labels = np.array([value[0] for value in labels_dict.values()])
     output = np.array([value[1:] for value in labels_dict.values()]).mean(axis=1)
     output_bin = (output > 0.5).astype(int)
 
-    print("[ Eensemble Evaluation Results ]")
+    print("[ Ensemble Evaluation Results ]")
     print("Model names:", config.model_list)
     print("# of Models:", len(config.model_list))
     print("      AUROC /  F1   /  Acc")
-    roc_cum, f1_cum, acc_cum = 0, 0, 0
-    for i in range(labels.shape[1]):
-        fpr, tpr, _ = roc_curve(labels[:, i], output[:, i])
-        roc_auc = metrics.auc(fpr, tpr)
-        roc_cum += roc_auc
-        f1 = f1_score(labels[:, i], output_bin[:, i])
-        f1_cum += f1
-        acc = accuracy_score(labels[:, i], output_bin[:, i])
-        acc_cum += acc
-        print(f"{label_names[i]}: {roc_auc:.3f} / {f1:.3f} / {acc:.3f}")
-    print(f"*Avg: {roc_cum / labels.shape[1]:.3f} / {f1_cum / labels.shape[1]:.3f} / {acc_cum / labels.shape[1]:.3f}")
+    fpr, tpr, _ = roc_curve(labels[:, target_idx], output[:, 0])
+    roc_auc = metrics.auc(fpr, tpr)
+    f1 = f1_score(labels[:, target_idx], output_bin[:, 0])
+    acc = accuracy_score(labels[:, target_idx], output_bin[:, 0])
+    print(f"{config.name}: {roc_auc:.3f} / {f1:.3f} / {acc:.3f}")
 
     sys.stdout.close()
     sys.stdout = stdoutOrigin
