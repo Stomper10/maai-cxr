@@ -89,6 +89,9 @@ if __name__ == '__main__':
             configs=configs
         )
 
+    model.summary()
+    exit()
+
     # training
     total_parameters = model.count_params()
     model.save_weights(f"sample_model_{configs.general.seed}.h5")

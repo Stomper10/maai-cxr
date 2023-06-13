@@ -58,6 +58,8 @@ if __name__ == '__main__':
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
     configs.saved_model_path = f"./{configs.fl}_weights/" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
+    if configs.model.classifier.add_expert == True:
+        configs.saved_model_path = f"./expert_{configs.fl}_weights/" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5"
 
     print(f"[TRAINING] current seed : {configs.general.seed}")
     functions.set_seed(configs.general.seed)
