@@ -24,9 +24,11 @@ from tensorflow.keras.preprocessing import image
 
 
 from modules.model import A2IModel
+# from modules.model_ensemble import Expert as A2IModel
 from modules.lr_scheduler import CustomOneCycleSchedule, LearningRateLogger
 import functions
-from cfg_121 import configs
+from cfg import configs
+# from cfg_label_ensemble import configs
 
 
 data_path = '/home/gyuseonglee/workspace/dataset/chexpert-resized'

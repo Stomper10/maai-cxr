@@ -90,7 +90,7 @@ class A2IModel(tf.keras.Model):
             model=self, 
             input_shape=feature_extractor_output_shape,
             target_name='card',
-            num_classes=3,
+            num_classes=2,
             activation='softmax',
             add_expert=configs.model.classifier.add_expert,
             expert_filters=configs.model.classifier.expert_filters,
@@ -132,7 +132,7 @@ class A2IModel(tf.keras.Model):
             model=self, 
             input_shape=feature_extractor_output_shape,
             target_name='plef',
-            num_classes=3,
+            num_classes=2,
             activation='softmax',
             add_expert=configs.model.classifier.add_expert,
             expert_filters=configs.model.classifier.expert_filters,
@@ -146,17 +146,13 @@ class A2IModel(tf.keras.Model):
 
     def extract_feature(self, x, training=False):
         """image augmentation """
-        # for idx, layer_name in enumerate(self.augmentation):
-        #     if idx == 0:
-        #         feature = getattr(self, layer_name)(x, training=training)
-        #     else:
-        #         feature = getattr(self, layer_name)(feature, training=training)      
-        
-        if x.shape[-1] == 3: # grayscale
-            x = tf.expand_dims(x[:, :, :, 0], axis=-1)
-        feature = x
-        # print(feature.shape)
-
+        for idx, layer_name in enumerate(self.augmentation):
+            if idx == 0:
+                feature = getattr(self, layer_name)(x, training=training)
+            else:
+                feature = getattr(self, layer_name)(feature, training=training)      
+                
+    
         """image feature extraction"""
         if self.configs.model.backbone == 'densenet':
             for idx, layer_name in enumerate(self.feature_extractor):
@@ -166,10 +162,6 @@ class A2IModel(tf.keras.Model):
                     feature = getattr(self, layer_name)([feature, feature_for_skip], training=training) # concatenate
                     feature_for_skip = None
                 else:
-                    # if ('densenet_stem_zeropad1' in layer_name):
-                    #     print(feature.shape)
-                    #     feature = getattr(self, layer_name)(feature, training=training)     
-                    # else:
                     feature = getattr(self, layer_name)(feature, training=training)     
                      
         elif self.configs.model.backbone == 'convnext':
@@ -226,13 +218,14 @@ class A2IModel(tf.keras.Model):
         atel_gt = tf.cast(atel_gt, dtype=tf.int32) # onehot : integer needed
         atel_gt = tf.one_hot(atel_gt, depth=2)
         
-        # card : multi (replace -1 with 2) (0.854)
+        # card : multi (replace -1 with 2) (0.854) -> U-zeros instead
         card_gt = y[:, 1]
         card_gt = tf.where(card_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
+                        #    tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(0.0, dtype=self.configs.general.tf_dtype), 
                            card_gt) 
         card_gt = tf.cast(card_gt, dtype=tf.int32) # onehot : integer needed
-        card_gt = tf.one_hot(card_gt, depth=3)
+        card_gt = tf.one_hot(card_gt, depth=2)
 
         # cons : ignore (0.937) -> U-zeros (0.932) adopted instead 
         cons_gt = y[:, 2]
@@ -250,13 +243,14 @@ class A2IModel(tf.keras.Model):
         edem_gt = tf.cast(edem_gt, dtype=tf.int32) # onehot : integer needed
         edem_gt = tf.one_hot(edem_gt, depth=2)
         
-        # plef : multi (0.936)
+        # plef : multi (0.936) -> U-Ones instead
         plef_gt = y[:, 4]
         plef_gt = tf.where(plef_gt == tf.constant(-1.0, dtype=self.configs.general.tf_dtype), 
-                           tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
+                        #    tf.constant(2.0, dtype=self.configs.general.tf_dtype), 
+                           tf.constant(1.0, dtype=self.configs.general.tf_dtype), 
                            plef_gt) 
         plef_gt = tf.cast(plef_gt, dtype=tf.int32)
-        plef_gt = tf.one_hot(plef_gt, depth=3)
+        plef_gt = tf.one_hot(plef_gt, depth=2)
 
         output = (
             (atel_gt, None), 
