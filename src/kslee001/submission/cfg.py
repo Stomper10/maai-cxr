@@ -45,11 +45,12 @@ DENSENET_CONFIGS = {
 }
 
 configs = EasyDict()
+configs.fl = 'Frontal' # [''Frontal'' / 'Lateral']
 configs.saved_model_path = './weights'
 """genearl configuration"""
 configs.general = EasyDict()
 configs.general.seed = 1005
-configs.general.batch_size = 16
+configs.general.batch_size = 64
 configs.general.epochs = 30 
 configs.general.steps_per_epoch = None
 configs.general.precision = 32 # fp32
@@ -99,7 +100,7 @@ configs.optimizer.focal_loss = None
 # model - general
 configs.model = EasyDict()
 configs.model.backbone = 'densenet'
-configs.model.regularization = 5e-5
+configs.model.regularization = 4e-5
 configs.model.label_smoothing = 0.1
 configs.model.use_aux_information = False
 # model - densenet
@@ -109,7 +110,7 @@ configs.model.densenet.blocks = DENSENET_CONFIGS[f"densenet{configs.model.densen
 configs.model.densenet.growth_rate = 32
 # model - convnext
 configs.model.convnext = EasyDict()
-configs.model.convnext.drop_path_rate = 0.1
+configs.model.convnext.drop_path_rate = 0.33
 configs.model.convnext.layer_scale_init_value = 1e-6
 configs.model.convnext.size = 'large'
 configs.model.convnext.depth = CONVNEXT_CONFIGS[configs.model.convnext.size]['depths']
@@ -117,7 +118,7 @@ configs.model.convnext.projection_dims = CONVNEXT_CONFIGS[configs.model.convnext
 # model - classifier
 configs.model.classifier = EasyDict()
 configs.model.classifier.add_expert = False
-configs.model.classifier.expert_filters = [512, 256, 128]
+configs.model.classifier.expert_filters = [128, 256, 512]
 
 
 

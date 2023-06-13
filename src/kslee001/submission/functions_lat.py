@@ -52,8 +52,8 @@ def load_datasets(configs):
     test_data = pd.read_csv(f"{configs.dataset.data_dir}/valid.csv")[['Path', 'Frontal/Lateral'] + configs.dataset.auxiliary_columns + configs.dataset.target_columns].fillna(0.0)
 
     # drop Lateral images
-    train_data = train_data[train_data['Frontal/Lateral']==configs.fl].reset_index(drop=True)
-    test_data = test_data[test_data['Frontal/Lateral']==configs.fl].reset_index(drop=True)
+    train_data = train_data[train_data['Frontal/Lateral']=='Frontal'].reset_index(drop=True)
+    test_data = test_data[test_data['Frontal/Lateral']=='Frontal'].reset_index(drop=True)
     del train_data['Frontal/Lateral']
     del test_data['Frontal/Lateral']
 
@@ -97,7 +97,7 @@ def load_datasets(configs):
     # train_data = train_data[train_data['patient'].isin(train_patients)].reset_index(drop=True)
     # del train_data['patient'], valid_data['patient']
     # del train_data['patient'], valid_data['patient']
-
+    
     valid_data = copy.deepcopy(test_data)
 
     """scaler """

@@ -25,9 +25,10 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--cluster', action='store', default='akmu')
     parser.add_argument('-f', '--backbone', action='store', default='densenet')
     parser.add_argument('-a', '--add_expert', action='store_true')
-    parser.add_argument('-e', '--epochs', action ='store', type=int, default=5)
+    parser.add_argument('-e', '--epochs', action ='store', type=int, default=35)
     parser.add_argument('-b', '--batch', action='store', type=int, default=16)
     parser.add_argument('-p', '--progress_bar', action ='store_false')
+    parser.add_argument('-z', '--fl', action='store', default='Frontal') # Lateral
     parser.add_argument('-s', '--seed', action='store', default=1005)
 
     # for debugging
@@ -36,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--wandb_off', action='store_false')
 
     args = parser.parse_args()
+    configs.fl = args.fl
     configs.general.progress_bar = 1 if args.progress_bar==True else 2 # one line per epoch
     cluster = args.cluster
     if cluster == 'gsds-ab':
@@ -49,11 +51,13 @@ if __name__ == '__main__':
     configs.model.classifier.add_expert = bool(args.add_expert)
     configs.dataset.cutoff = 1000 if args.test == True else None
     configs.wandb.use_wandb = args.wandb_off
-    configs.wandb.run_name = f'final-{configs.general.seed}-{configs.model.backbone}121-{configs.dataset.image_size[0]}'
+    configs.wandb.run_name = f'submit-{configs.fl}-{configs.general.seed}-{configs.dataset.image_size[0]}'
+    if configs.model.classifier.add_expert == True:
+        configs.wandb.run_name = configs.wandb.run_name + '-expert_added'
     configs.general.distributed = True if args.single_gpu == False else False
     configs.general.epochs = int(args.epochs)
     configs.general.batch = int(args.batch)
-    configs.saved_model_path = "./weights/" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
+    configs.saved_model_path = f"./{configs.fl}_weights/" + f"{configs.model.backbone}121_{configs.general.seed}_" + "{epoch:02d}-{val_loss:.2f}.h5" 
 
     print(f"[TRAINING] current seed : {configs.general.seed}")
     functions.set_seed(configs.general.seed)
@@ -94,7 +98,8 @@ if __name__ == '__main__':
     model.save_weights(f"sample_model_{configs.general.seed}.h5")
     file_size = os.path.getsize(f"sample_model_{configs.general.seed}.h5") / (1024 * 1024)
     print("[TRAINING INFO]")
-    print(f"-- Model Feature extractor : {configs.model.backbone}")
+    print(f"-- Target ")
+    print(f"-- Model feature extractor : {configs.model.backbone}")
     print(f"-- Total parameters        : {format(total_parameters, ',')}")
     print(f"-- Expected weight size    : {np.round(file_size, 2)} MB")
     model.fit(

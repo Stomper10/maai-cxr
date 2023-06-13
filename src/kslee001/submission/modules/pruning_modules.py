@@ -371,7 +371,7 @@ def Classifier(
         for conv_idx in range(len(expert_filters)):
             img_input = set_layer(img_input=img_input, name=f'{target_name}_classifier_expert_{conv_idx}_pool', layer=layers.MaxPool2D, args={'pool_size':(2,2), 'strides':2})
             img_input = set_layer(img_input=img_input, name=f'{target_name}_classifier_expert_{conv_idx}_conv', layer=layers.Conv2D, args={
-            'filters':expert_filters[conv_idx], 'kernel_size':3, 'strides':(1,1), 'use_bias':False, 
+            'filters':expert_filters[conv_idx], 'kernel_size':3, 'strides':(1,1), 'use_bias':False,  'padding':'same',
             'kernel_initializer':initializer,
             'kernel_regularizer':regularizer,})
             img_input = set_layer(img_input=img_input, name=f'{target_name}_classifier_expert_{conv_idx}_bn', layer=layers.BatchNormalization, args={'axis':-1, 'epsilon':1.001e-5})

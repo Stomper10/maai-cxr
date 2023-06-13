@@ -162,7 +162,8 @@ class A2IModel(tf.keras.Model):
                     feature = getattr(self, layer_name)([feature, feature_for_skip], training=training) # concatenate
                     feature_for_skip = None
                 else:
-                    feature = getattr(self, layer_name)(feature, training=training)     
+                    feature = getattr(self, layer_name)(feature, training=training)    
+
                      
         elif self.configs.model.backbone == 'convnext':
             for idx, layer_name in enumerate(self.feature_extractor):
@@ -175,6 +176,8 @@ class A2IModel(tf.keras.Model):
                 else:
                     feature = getattr(self, layer_name)(feature, training=training)     
                     
+            
+
         return feature
 
 
@@ -194,6 +197,7 @@ class A2IModel(tf.keras.Model):
         x = X
         """image forward"""
         feature = self.extract_feature(x, training=training)
+        
 
         """label classification features"""
         atel_pred = self.classify(feature, self.atel_classifier, training=training)
