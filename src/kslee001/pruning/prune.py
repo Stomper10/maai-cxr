@@ -15,15 +15,28 @@ from modules.model import A2IModel
 from cfg import configs
 import functions
 
+from pruning_modules import Augmentation, DenseNet, ConvNeXt, Classifier
+
 
 configs.model.backbone = 'densenet'
 configs.model.densenet.size = '121'
 configs.wandb.use_wandb = False
 configs.general.distributed = False
-configs.general.epochs = 5
+configs.general.epochs = 1
 configs.general.batch_size = 16 # 원하는 경우 batch size 변경 가능
 
-DATA_DIRECTORY = '/home/gyuseonglee/workspace/dataset/chexpert-resized'
+DATA_DIRECTORY = '/home/n1/gyuseonglee/workspace/datasets/chexpert-resized'
+
+
+
+class Prune(tf.keras.layers.Layer):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def call(self, x):
+        return self.model(x)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -35,29 +48,33 @@ if __name__ == '__main__':
 
     # dataset directory
     configs.dataset.data_dir = DATA_DIRECTORY
-    configs.dataset.cutoff = None # train 데이터 수 cutoff 만큼만 불러오기
+    configs.dataset.cutoff = 500 # train 데이터 수 cutoff 만큼만 불러오기
 
     # load dataset
     train_dataset, valid_dataset, test_dataset = functions.load_datasets(configs) 
     configs.general.steps_per_epoch = train_dataset.steps_per_epoch
 
-    WEIGHT_DIRECTORY = f'/home/gyuseonglee/workspace/maai-cxr/src/kslee001/pruning/weights/ensemble/densenet121_{configs.general.seed}_test.h5'
+    WEIGHT_DIRECTORY = f'/home/n1/gyuseonglee/workspace/maai-cxr/src/kslee001/pruning/weights/ensemble/densenet121_{configs.general.seed}_test.h5'
 
     configs.saved_model_path = "./pruned_weights/ensemble/" + f"pruned_{str(target_sparsity)}_{configs.model.backbone}121_{configs.general.seed}_test.h5" 
 
     # load model
-    model = A2IModel(configs=configs)
-    model.initialize()
-    model.load_weights(WEIGHT_DIRECTORY) # base model weight 불러오기
+    model_ = A2IModel(configs=configs)
+    model_.initialize()
+    model_.load_weights(WEIGHT_DIRECTORY) # base model weight 불러오기
+    
+    model = Prune(model=model_)
+
+
+    
     criterion = tf.keras.losses.CategoricalCrossentropy(
         from_logits=False,
         label_smoothing=0.1,
         reduction='auto',
     )
-    model.compile(loss=criterion)
 
-    layers = [layer for layer in model.layers]
-    model = tf.keras.Sequential(layers)
+    # model.compile(loss=criterion)
+
     
     print("MODEL LOAD SUCCESS!")
     
@@ -82,30 +99,62 @@ if __name__ == '__main__':
             return tfmot.sparsity.keras.prune_low_magnitude(layer)
         return layer
     
-    model_for_pruning = tf.keras.models.clone_model(
-            model,
-            clone_function=apply_pruning_to_dense,
-        )
+    # model_for_pruning = tf.keras.models.clone_model(
+    #         model,
+    #         clone_function=apply_pruning_to_dense,
+    #     )
     
 
     # recompile
-    model_for_pruning, callbacks = functions.set_model_callbacks(model_class=A2IModel, 
-                                                                configs=configs
-                                                                )
+    # model_for_pruning, callbacks = functions.set_model_callbacks(model_class=A2IModel, 
+    #                                                             configs=configs
+    #                                                             )
     # model_for_pruning.summary()
     print("PRUNING RECOMPILE DONE!")
     print("START TRAINING...")
-    model_for_pruning.fit(
-        train_dataset, 
-        epochs=5, 
-        validation_data=valid_dataset,
-        callbacks=callbacks,
-        workers=configs.general.num_workers,
-        verbose=1, 
-        shuffle=True,
+    scheduler = CustomOneCycleSchedule(
+        max_lr=configs.optimizer.learning_rate, 
+        epochs=configs.general.epochs,
+        steps_per_epoch=configs.general.steps_per_epoch,
+        start_lr=None, end_lr=None, warmup_fraction=configs.optimizer.warm_up_rate,
     )
+    optimizer = tf.keras.optimizers.AdamW(
+        learning_rate=scheduler,
+        weight_decay=configs.optimizer.weight_decay,
+        beta_1=configs.optimizer.beta_1,
+        beta_2=configs.optimizer.beta_2,
+        ema_momentum=configs.optimizer.ema_momentum,
+    )    
 
-    # model_for_pruning.save(f"pruned_{target_sparsity}.h5", save_format='h5')
+    for idx, batch in tq(enumerate(train_dataset)):
+        x, y = batch
+        with tf.GradientTape() as tape:
+            yhat = model(x)
+            atel_loss = criterion(y[:, 0], yhat[0])
+            card_loss = criterion(y[:, 1], yhat[1])
+            cons_loss = criterion(y[:, 2], yhat[2])
+            edem_loss = criterion(y[:, 3], yhat[3])
+            plef_loss = criterion(y[:, 4], yhat[4])
+            total_loss = atel_loss + card_loss + cons_loss + edem_loss + plef_loss
 
+        gradients = tape.gradient(total_loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
+        
 
+    # model.fit(
+    #     train_dataset, 
+    #     epochs=5, 
+    #     validation_data=valid_dataset,
+    #     # callbacks=callbacks,
+    #     workers=configs.general.num_workers,
+    #     verbose=1, 
+    #     shuffle=True,
+    # )
+
+    model.save(f"pruned_{target_sparsity}.h5", save_format='tf')
+    model_for_export = tfmot.sparsity.keras.strip_pruning(model)
+
+    _, pruned_keras_file = tempfile.mkstemp('.h5')
+    tf.keras.models.save_model(model_for_export, pruned_keras_file, include_optimizer=False)
+    print('Saved pruned Keras model to:', pruned_keras_file)
