@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', action ='store', type=int, default=35)
     parser.add_argument('-b', '--batch', action='store', type=int, default=16)
     parser.add_argument('-p', '--progress_bar', action ='store_false')
-    parser.add_argument('-z', '--fl', action='store', default='Frontal') # Lateral
+    parser.add_argument('-z', '--fl', action='store', default='Lateral') # Lateral
     parser.add_argument('-s', '--seed', action='store', default=1005)
 
     # for debugging

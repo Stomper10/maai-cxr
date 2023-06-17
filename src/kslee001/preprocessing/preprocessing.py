@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
     # mode = 'train'
     # size = 320
-    image_folder = "/home/n1/gyuseonglee/workspace/datasets/chexpert/CheXpert-v1.0"
-    target_folder = f"/home/n1/gyuseonglee/workspace/datasets/chexpert-resized/{mode}_{size}"
+    image_folder = "/home/gyuseonglee/workspace/dataset/chexpert/CheXpert-v1.0"
+    target_folder = f"/home/gyuseonglee/workspace/dataset/chexpert-resized/{mode}_{size}"
 
     make_dir(target_folder)
     
@@ -60,7 +60,8 @@ if __name__ == '__main__':
     print("-- load image directories...")
     d = sum([glob.glob(f"{image_folder}/{mode}/patient{str(idx).zfill(5)}/study*/*.jpg") for idx in tq(range(start_patient, end_patient))], [])
 
-    d = [d[idx] for idx in range(len(d)) if 'lateral' not in d[idx]]
+    # d = [d[idx] for idx in range(len(d)) if 'lateral' not in d[idx]]
+    d = [d[idx] for idx in range(len(d)) if 'frontal' not in d[idx]]
 
     patients = [d[idx].split(f"v1.0/{mode}/")[1].split("/study")[0] for idx in range(len(d))]
     studies  = [d[idx].split(f"{patients[idx]}")[1].split("/view")[0].replace("/", "") for idx in range(len(d))]

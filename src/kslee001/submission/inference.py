@@ -17,9 +17,10 @@ import wandb
 from wandb.keras import WandbCallback, WandbMetricsLogger
 
 # private
+from cfg import configs
 from modules.model import A2IModel
 from modules.lr_scheduler import CustomOneCycleSchedule, LearningRateLogger
-from cfg import configs
+
 import functions
 configs.model.backbone = 'densenet'
 configs.model.densenet.size = '121'
@@ -33,21 +34,13 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--backbone', action='store', default='densenet')
     parser.add_argument('-t', '--backbonetype', action='store', default='121')
     parser.add_argument('-s', '--seed', action='store', default=1005, type=int)
+    parser.add_argument('-z', '--fl', action='store', default='Lateral')
+    parser.add_argument('-a', '--add_expert', action='store_true')
 
     args = parser.parse_args()
     cluster = args.cluster
-    if (args.backbone == 'densenet') & (args.backbonetype == '121'):
-        from cfg_121 import configs
-        configs.model.backbone = 'densenet'
-    if (args.backbone == 'densenet') & (args.backbonetype == '169'):
-        from cfg_169 import configs
-        configs.model.backbone = 'densenet'
-    if (args.backbone == 'convnext') & (args.backbonetype == 'small'):
-        from cfg_conv_small import configs
-        configs.model.backbone = 'convnext'
-    if (args.backbone == 'convnext') & (args.backbonetype == 'base'):
-        from cfg_conv_base import configs
-        configs.model.backbone = 'convnext'
+    configs.model.add_expert = args.add_expert
+    
     if cluster == 'gsds-ab':
         configs.dataset.data_dir = '/home/n1/gyuseonglee/workspace/datasets/chexpert-resized'
     if cluster == 'gsds-c':
@@ -79,7 +72,11 @@ if __name__ == '__main__':
 
     # load weights
     print("current : ", configs.model.backbone+args.backbonetype)
-    weights = sorted(glob.glob(f"./{configs.model.backbone}{args.backbonetype}_{configs.general.seed}*.h5"))
+    weights = sorted(glob.glob(f"./{args.fl}_weights/{configs.model.backbone}{args.backbonetype}_{configs.general.seed}*.h5"))
+    if args.add_expert:
+        weights = sorted(glob.glob(f"./expert_{args.fl}_weights/{configs.model.backbone}{args.backbonetype}_{configs.general.seed}*.h5"))
+    print("weight example : ", weights[0])
+    print("add_expert?    : ", configs.model.add_expert)
 
 
     best_weights = None
